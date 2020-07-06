@@ -4,6 +4,11 @@ This is an early version of a raytracing library, for now working only in 2 dime
 import numpy as np
 
 
+def normalize(x):
+    x = x/np.linalg.norm(x)
+    return x
+
+
 class Scene:
     def __init__(self, rays, objects):
         self.rays = rays
@@ -12,7 +17,8 @@ class Scene:
     def step(self):
         for ray in self.rays:
             inter, obj = self.intersect(ray)
-            obj.refract(ray, inter)
+            if obj:
+                obj.refract(ray, inter)
 
     def intersect(self, ray):
         d_min = np.inf
@@ -22,7 +28,10 @@ class Scene:
             if d < d_min:
                 d_min = d
                 obj_min = obj
-        return ray.origin + d_min*ray.dir, obj_min
+        if obj_min:
+            return ray.origin + d_min*ray.dir, obj_min
+        else:
+            return np.inf, obj_min
 
     def propagate(self, d):
         for ray in self.rays:
@@ -38,7 +47,7 @@ class Ray:
         """
         self._origin = np.array(origin)
         self.history = np.array([self._origin])
-        self.dir = np.array(direction)
+        self.dir = normalize(np.array(direction))
 
     @property
     def origin(self):
@@ -74,12 +83,13 @@ class TracerObject:
 class Mirror(TracerObject):
     def __init__(self, origin, normal):
         self.origin = np.array(origin)
-        self._normal = np.array(normal)
+        self._normal = normalize(np.array(normal))
 
     def intersect_d(self, ray):
         dot = np.dot(self.origin - ray.origin, self._normal)
-        if dot < 0:
-            return dot / np.dot(ray.dir, self._normal)
+        if dot != 0:
+            d = dot / np.dot(ray.dir, self._normal)
+            return d if d > 0 else np.inf
         else:
             return np.inf
 
