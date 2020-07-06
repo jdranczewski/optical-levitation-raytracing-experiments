@@ -16,9 +16,12 @@ class Scene:
 
     def step(self):
         for ray in self.rays:
-            inter, obj = self.intersect(ray)
-            if obj:
-                obj.refract(ray, inter)
+            if not ray.done:
+                inter, obj = self.intersect(ray)
+                if obj:
+                    obj.refract(ray, inter)
+                else:
+                    ray.stop()
 
     def intersect(self, ray):
         d_min = np.inf
@@ -35,7 +38,8 @@ class Scene:
 
     def propagate(self, d):
         for ray in self.rays:
-            ray.origin = ray.origin + ray.dir*d
+            ray.propagate(d)
+
 
 class Ray:
     def __init__(self, origin, direction):
@@ -48,6 +52,14 @@ class Ray:
         self._origin = np.array(origin)
         self.history = np.array([self._origin])
         self.dir = normalize(np.array(direction))
+        self.done = False
+
+    def stop(self):
+        self.done = True
+        self.propagate(1)
+
+    def propagate(self, d):
+        self.origin += self.dir * d
 
     @property
     def origin(self):
@@ -60,7 +72,6 @@ class Ray:
 
     def __repr__(self):
         return "Ray({}, {})".format(self._origin, self.dir)
-
 
 
 class TracerObject:
@@ -87,7 +98,7 @@ class Mirror(TracerObject):
 
     def intersect_d(self, ray):
         dot = np.dot(self.origin - ray.origin, self._normal)
-        if dot != 0:
+        if dot < 0:
             d = dot / np.dot(ray.dir, self._normal)
             return d if d > 0 else np.inf
         else:
@@ -99,3 +110,6 @@ class Mirror(TracerObject):
     def refract(self, ray, point):
         ray.origin = point
         ray.dir -= 2*self._normal*np.dot(self._normal, ray.dir)
+
+    def __repr__(self):
+        return "Mirror({}, {})".format(self.origin, self._normal)
