@@ -12,6 +12,7 @@ class Scene:
     def step(self):
         for ray in self.rays:
             inter, obj = self.intersect(ray)
+            obj.refract(ray, inter)
 
     def intersect(self, ray):
         d_min = np.inf
@@ -22,6 +23,10 @@ class Scene:
                 d_min = d
                 obj_min = obj
         return ray.origin + d_min*ray.dir, obj_min
+
+    def propagate(self, d):
+        for ray in self.rays:
+            ray.origin = ray.origin + ray.dir*d
 
 class Ray:
     def __init__(self, origin, direction):
@@ -42,7 +47,7 @@ class Ray:
     @origin.setter
     def origin(self, new_origin):
         self._origin = np.array(new_origin)
-        self.history = np.append(self.history, self._origin)
+        self.history = np.append(self.history, [self._origin], axis=0)
 
     def __repr__(self):
         return "Ray({}, {})".format(self._origin, self.dir)
@@ -62,7 +67,7 @@ class TracerObject:
     def normal_dir(self, point):
         return np.arctan2(*self.normal(point))
 
-    def ABCD(self, point):
+    def refract(self, point):
         raise NotImplementedError
 
 
@@ -81,5 +86,6 @@ class Mirror(TracerObject):
     def normal(self, point):
         return self._normal
 
-    def ABCD(self, point):
-        raise NotImplementedError
+    def refract(self, ray, point):
+        ray.origin = point
+        ray.dir -= 2*self._normal*np.dot(self._normal, ray.dir)
