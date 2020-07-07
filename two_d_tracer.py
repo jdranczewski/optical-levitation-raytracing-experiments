@@ -30,9 +30,11 @@ class Scene:
             if all([ray.done for ray in self.rays]):
                 break
 
-    def plot(self, ax, kwargs={}):
+    def plot(self, ax, ray_kwargs={}):
         for ray in self.rays:
-            ax.plot(ray.history[:, 0], ray.history[:, 1], **kwargs)
+            ax.plot(ray.history[:, 0], ray.history[:, 1], **ray_kwargs)
+        for obj in self.objects:
+            obj.plot(ax)
 
     def intersect(self, ray):
         d_min = np.inf
@@ -129,11 +131,15 @@ class TracerObject:
     def act_ray(self, ray, point):
         raise NotImplementedError
 
+    def plot(self, ax):
+        pass
+
 
 class Plane(TracerObject):
     def __init__(self, origin, normal, *args, **kwargs):
         super().__init__(origin, *args, **kwargs)
         self._normal = normalize(np.array(normal))
+        self.along = np.array([self._normal[1], -self._normal[0]])
 
     def intersect_d(self, ray):
         dot = np.dot(ray.dir, self._normal)
@@ -148,6 +154,10 @@ class Plane(TracerObject):
 
     def act_ray(self, ray, point):
         raise NotImplementedError
+
+    def plot(self, ax):
+        points = np.array([self.origin+self.along, self.origin+0.1*self.along, self.origin+self._normal, self.origin-0.1*self.along, self.origin-self.along])
+        ax.plot(points[:, 0], points[:, 1], ":")
 
 
 class Mirror(Plane):
@@ -170,7 +180,6 @@ class RayCanvas(Plane):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.points = []
-        self.along = np.array([self._normal[1], -self._normal[0]])
 
     def act_ray(self, ray, point):
         ray.origin = point
