@@ -19,7 +19,7 @@ class Scene:
             if not ray.done:
                 inter, obj = self.intersect(ray)
                 if obj:
-                    obj.refract(ray, inter)
+                    obj.act_ray(ray, inter)
                 else:
                     ray.stop()
 
@@ -79,63 +79,20 @@ class Ray:
 
 
 class TracerObject:
-    def __init__(self, origin):
+    def __init__(self, origin, n_in=1, n_out=1):
         self.origin = origin
-
-    def intersect_d(self, ray):
-        raise NotImplementedError
-
-    def normal(self, point):
-        raise NotImplementedError
-
-    def normal_dir(self, point):
-        return np.arctan2(*self.normal(point))
-
-    def refract(self, point):
-        raise NotImplementedError
-
-
-class Mirror(TracerObject):
-    def __init__(self, origin, normal):
-        super().__init__(origin)
-        self._normal = normalize(np.array(normal))
-
-    def intersect_d(self, ray):
-        dot = np.dot(self.origin - ray.origin, self._normal)
-        if dot < 0:
-            d = dot / np.dot(ray.dir, self._normal)
-            return d if d > 0 else np.inf
-        else:
-            return np.inf
-
-    def normal(self, point):
-        return self._normal
-
-    def refract(self, ray, point):
-        ray.origin = point
-        ray.dir -= 2*self._normal*np.dot(self._normal, ray.dir)
-
-    def __repr__(self):
-        return "Mirror({}, {})".format(self.origin, self._normal)
-
-
-class RefractiveSurface(TracerObject):
-    def __init__(self, origin, normal, n_in, n_out=1):
-        super().__init__(origin)
         self.n_in = n_in
         self.n_out = n_out
-        self._normal = normalize(np.array(normal))
 
     def intersect_d(self, ray):
-        dot = np.dot(self.origin - ray.origin, self._normal)
-        if dot != 0:
-            d = dot / np.dot(ray.dir, self._normal)
-            return d if d > 0 else np.inf
-        else:
-            return np.inf
+        raise NotImplementedError
 
     def normal(self, point):
-        return self._normal
+        raise NotImplementedError
+
+    def reflect(self, ray, point):
+        ray.origin = point
+        ray.dir -= 2 * self.normal(point) * np.dot(self.normal(point), ray.dir)
 
     def refract(self, ray, point):
         ray.origin = point
@@ -154,9 +111,45 @@ class RefractiveSurface(TracerObject):
         cos_i = -np.dot(ray.dir, normal)
         sin_i2 = 1 - cos_i**2
         if np.sqrt(sin_i2) > n2/n1:
-            ray.dir -= 2 * self._normal * np.dot(self._normal, ray.dir)
+            self.reflect(ray, point)
         else:
             ray.dir = n1/n2*ray.dir + (n1/n2*cos_i - np.sqrt(1 - (n1/n2)**2 * sin_i2)) * normal
+
+    def act_ray(self, ray, point):
+        raise NotImplementedError
+
+
+class Plane(TracerObject):
+    def __init__(self, origin, normal, *args, **kwargs):
+        super().__init__(origin, *args, **kwargs)
+        self._normal = normalize(np.array(normal))
+
+    def intersect_d(self, ray):
+        dot = np.dot(self.origin - ray.origin, self._normal)
+        if dot != 0:
+            d = dot / np.dot(ray.dir, self._normal)
+            return d if d > 0 else np.inf
+        else:
+            return np.inf
+
+    def normal(self, point):
+        return self._normal
+
+    def act_ray(self, ray, point):
+        raise NotImplementedError
+
+
+class Mirror(Plane):
+    def act_ray(self, ray, point):
+        self.reflect(ray, point)
+
+    def __repr__(self):
+        return "Mirror({}, {})".format(self.origin, self._normal)
+
+
+class RefractiveSurface(Plane):
+    def act_ray(self, ray, point):
+        self.refract(ray, point)
 
     def __repr__(self):
         return "Mirror({}, {})".format(self.origin, self._normal)
