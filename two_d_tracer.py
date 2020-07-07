@@ -164,3 +164,17 @@ class RefractiveSurface(Plane):
 
     def __repr__(self):
         return "Mirror({}, {})".format(self.origin, self._normal)
+
+
+class RayCanvas(Plane):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.points = []
+        self.along = np.array([self._normal[1], -self._normal[0]])
+
+    def act_ray(self, ray, point):
+        ray.origin = point
+        self.points.append(np.dot(self.along, point))
+
+    def __repr__(self):
+        return "RayCanvas({}, {}): {}".format(self.origin, self._normal, self.points)
