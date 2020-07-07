@@ -23,6 +23,17 @@ class Scene:
                 else:
                     ray.stop()
 
+    def run(self, limit=100, margin=1e-10):
+        for i in range(limit):
+            self.step()
+            self.propagate(margin)
+            if all([ray.done for ray in self.rays]):
+                break
+
+    def plot(self, ax, kwargs={}):
+        for ray in self.rays:
+            ax.plot(ray.history[:, 0], ray.history[:, 1], **kwargs)
+
     def intersect(self, ray):
         d_min = np.inf
         obj_min = None
@@ -98,14 +109,14 @@ class TracerObject:
         ray.origin = point
 
         # Check what direction the light's going
-        if np.dot(ray.dir, self._normal) < 0:
+        if np.dot(ray.dir, self.normal(point)) < 0:
             n1 = self.n_in
             n2 = self.n_out
-            normal = self._normal
+            normal = self.normal(point)
         else:
             n1 = self.n_out
             n2 = self.n_in
-            normal = -self._normal
+            normal = -self.normal(point)
 
         # Check for total internal reflection
         cos_i = -np.dot(ray.dir, normal)
@@ -125,9 +136,9 @@ class Plane(TracerObject):
         self._normal = normalize(np.array(normal))
 
     def intersect_d(self, ray):
-        dot = np.dot(self.origin - ray.origin, self._normal)
+        dot = np.dot(ray.dir, self._normal)
         if dot != 0:
-            d = dot / np.dot(ray.dir, self._normal)
+            d = np.dot(self.origin - ray.origin, self._normal) / dot
             return d if d > 0 else np.inf
         else:
             return np.inf
