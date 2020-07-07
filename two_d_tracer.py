@@ -70,13 +70,17 @@ class Ray:
         self._origin = np.array(new_origin)
         self.history = np.append(self.history, [self._origin], axis=0)
 
+    @property
+    def angle(self):
+        return np.arctan2(*self.dir[::-1])
+
     def __repr__(self):
         return "Ray({}, {})".format(self._origin, self.dir)
 
 
 class TracerObject:
-    def __init__(self):
-        self.origin = None
+    def __init__(self, origin):
+        self.origin = origin
 
     def intersect_d(self, ray):
         raise NotImplementedError
@@ -93,7 +97,7 @@ class TracerObject:
 
 class Mirror(TracerObject):
     def __init__(self, origin, normal):
-        self.origin = np.array(origin)
+        super().__init__(origin)
         self._normal = normalize(np.array(normal))
 
     def intersect_d(self, ray):
@@ -110,6 +114,49 @@ class Mirror(TracerObject):
     def refract(self, ray, point):
         ray.origin = point
         ray.dir -= 2*self._normal*np.dot(self._normal, ray.dir)
+
+    def __repr__(self):
+        return "Mirror({}, {})".format(self.origin, self._normal)
+
+
+class RefractiveSurface(TracerObject):
+    def __init__(self, origin, normal, n_in, n_out=1):
+        super().__init__(origin)
+        self.n_in = n_in
+        self.n_out = n_out
+        self._normal = normalize(np.array(normal))
+
+    def intersect_d(self, ray):
+        dot = np.dot(self.origin - ray.origin, self._normal)
+        if dot != 0:
+            d = dot / np.dot(ray.dir, self._normal)
+            return d if d > 0 else np.inf
+        else:
+            return np.inf
+
+    def normal(self, point):
+        return self._normal
+
+    def refract(self, ray, point):
+        ray.origin = point
+
+        # Check what direction the light's going
+        if np.dot(ray.dir, self._normal) < 0:
+            n1 = self.n_in
+            n2 = self.n_out
+            normal = self._normal
+        else:
+            n1 = self.n_out
+            n2 = self.n_in
+            normal = -self._normal
+
+        # Check for total internal reflection
+        cos_i = -np.dot(ray.dir, normal)
+        sin_i2 = 1 - cos_i**2
+        if np.sqrt(sin_i2) > n2/n1:
+            ray.dir -= 2 * self._normal * np.dot(self._normal, ray.dir)
+        else:
+            ray.dir = n1/n2*ray.dir + (n1/n2*cos_i - np.sqrt(1 - (n1/n2)**2 * sin_i2)) * normal
 
     def __repr__(self):
         return "Mirror({}, {})".format(self.origin, self._normal)
