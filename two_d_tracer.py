@@ -2,6 +2,7 @@
 This is an early version of a raytracing library, for now working only in 2 dimensions.
 """
 import numpy as np
+from matplotlib.pyplot import Circle
 
 
 def normalize(x):
@@ -187,3 +188,40 @@ class RayCanvas(Plane):
 
     def __repr__(self):
         return "RayCanvas({}, {}): {}".format(self.origin, self._normal, self.points)
+
+
+class Sphere(TracerObject):
+    def __init__(self, origin, radius, *args, **kwargs):
+        super().__init__(origin, *args, **kwargs)
+        self.radius = radius
+
+    def intersect_d(self, ray):
+        r = ray.origin - self.origin
+        a = -np.dot(r, ray.dir)
+        b = a**2 - r.dot(r) + self.radius**2
+        if b < 0:
+            return np.inf
+        b = np.sqrt(b)
+        if a > b:
+            return a-b
+        elif a > 0:
+            return a+b
+        else:
+            return np.inf
+
+    def normal(self, point):
+        return normalize(point-self.origin)
+
+    def act_ray(self, ray, point):
+        self.refract(ray, point)
+
+    def plot(self, ax):
+        patch = Circle(self.origin, self.radius, alpha=0.2)
+        ax.add_artist(patch)
+
+    def __repr__(self):
+        return "Sphere({}, {})".format(self.origin, self.radius)
+
+class ReflectiveSphere(Sphere):
+    def act_ray(self, ray, point):
+        self.reflect(ray, point)
