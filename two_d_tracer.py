@@ -204,7 +204,7 @@ class Sphere(TracerObject):
         b = np.sqrt(b)
         if a > b:
             return a-b
-        elif a > 0:
+        elif a + b > 0:
             return a+b
         else:
             return np.inf
