@@ -206,7 +206,7 @@ class Sphere(TracerObject):
     def __init__(self, origin, radius, mask=None, *args, **kwargs):
         super().__init__(origin, *args, **kwargs)
         self.radius = radius
-        self.mask = np.array(mask)
+        self.mask = None if mask is None else np.array(mask)
 
     def intersect_d(self, ray):
         r = ray.origin - self.origin
