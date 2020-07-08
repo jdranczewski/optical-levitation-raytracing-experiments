@@ -3,11 +3,31 @@ This is an early version of a raytracing library, for now working only in 2 dime
 """
 import numpy as np
 from matplotlib.patches import Circle, Wedge
+from matplotlib.colors import hsv_to_rgb
 
 
 def normalize(x):
     x = x/np.linalg.norm(x)
     return x
+
+def mapping(v, a, b, c, d):
+    if v < a:
+        return c
+    if v > b:
+        return d
+    else:
+        return (v-a)/(b-a)*(d-c) + c
+
+def nm_to_rgb(wvl, margin=30):
+    vis = (380+margin, 740-margin)
+    v = 1
+    if wvl < vis[0]:
+        v = mapping(wvl, vis[0]-margin, vis[0], 0, 1)
+    elif wvl > vis[1]:
+        v = mapping(wvl, vis[1], vis[1]+margin, 1, 0)
+    h = mapping(wvl, vis[0], vis[1], 200/255, 0)
+    return hsv_to_rgb((h,1,v))
+
 
 
 class Scene:
@@ -56,7 +76,7 @@ class Scene:
 
 
 class Ray:
-    def __init__(self, origin, direction):
+    def __init__(self, origin, direction, wavelength=550e-9):
         """
         Create a new ray.
 
@@ -66,6 +86,8 @@ class Ray:
         self._origin = np.array(origin)
         self.history = np.array([self._origin])
         self.dir = normalize(np.array(direction))
+        self.wavelength=wavelength
+        self.c = nm_to_rgb(wavelength*1e9)
         self.done = False
 
     def stop(self):
