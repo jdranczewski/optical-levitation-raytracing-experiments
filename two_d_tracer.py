@@ -42,10 +42,12 @@ class Scene:
                 else:
                     ray.stop()
 
-    def run(self, limit=100, margin=1e-10):
+    def run(self, limit=100, margin=1e-10, announce_steps=False):
         for i in range(limit):
             self.step()
             self.propagate(margin)
+            if announce_steps:
+                print("Step", i)
             if all([ray.done for ray in self.rays]):
                 break
 
@@ -132,14 +134,12 @@ class TracerObject:
         ray.origin = point
 
         # Check what direction the light's going
-        if np.dot(ray.dir, self.normal(point)) < 0:
-            n1 = self.n_in
-            n2 = self.n_out
-            normal = self.normal(point)
-        else:
-            n1 = self.n_out
-            n2 = self.n_in
-            normal = -self.normal(point)
+        n1 = self.n_in(ray.wavelength) if callable(self.n_in) else self.n_in
+        n2 = self.n_out(ray.wavelength) if callable(self.n_out) else self.n_out
+        normal = self.normal(point)
+        if np.dot(ray.dir, self.normal(point)) > 0:
+            n1, n2 = n2, n1
+            normal = -normal
 
         # Check for total internal reflection
         cos_i = -np.dot(ray.dir, normal)
@@ -206,7 +206,7 @@ class RefractiveSurface(Plane):
             ray.origin = point
 
     def __repr__(self):
-        return "Mirror({}, {})".format(self.origin, self._normal)
+        return "RefractiveSurface({}, {})".format(self.origin, self._normal)
 
 
 class RayCanvas(Plane):
