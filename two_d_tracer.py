@@ -10,6 +10,7 @@ def normalize(x):
     x = x/np.linalg.norm(x)
     return x
 
+
 def mapping(v, a, b, c, d):
     if v < a:
         return c
@@ -18,16 +19,13 @@ def mapping(v, a, b, c, d):
     else:
         return (v-a)/(b-a)*(d-c) + c
 
-def nm_to_rgb(wvl, margin=30):
-    vis = (380+margin, 740-margin)
-    v = 1
-    if wvl < vis[0]:
-        v = mapping(wvl, vis[0]-margin, vis[0], 0, 1)
-    elif wvl > vis[1]:
-        v = mapping(wvl, vis[1], vis[1]+margin, 1, 0)
-    h = mapping(wvl, vis[0], vis[1], 200/255, 0)
-    return hsv_to_rgb((h,1,v))
 
+def nm_to_rgb(wvl, margin=30):
+    wv = np.array([380, 460, 480, 515, 590, 630, 670])
+    hv = np.array([197, 174, 135, 89, 42, 23, 0])/255
+    h = np.interp(wvl, wv, hv)
+    v = np.interp(wvl, [380, 380+margin, 740-margin, 740], [0,1,1,0])
+    return hsv_to_rgb((h, 1, v))
 
 
 class Scene:
@@ -51,9 +49,9 @@ class Scene:
             if all([ray.done for ray in self.rays]):
                 break
 
-    def plot(self, ax, ray_kwargs={}):
+    def plot(self, ax, true_color=True, ray_kwargs={}):
         for ray in self.rays:
-            ax.plot(ray.history[:, 0], ray.history[:, 1], **ray_kwargs)
+            ax.plot(ray.history[:, 0], ray.history[:, 1], c=ray.c, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
 
@@ -76,7 +74,7 @@ class Scene:
 
 
 class Ray:
-    def __init__(self, origin, direction, wavelength=550e-9):
+    def __init__(self, origin, direction, wavelength=467):
         """
         Create a new ray.
 
@@ -87,7 +85,7 @@ class Ray:
         self.history = np.array([self._origin])
         self.dir = normalize(np.array(direction))
         self.wavelength=wavelength
-        self.c = nm_to_rgb(wavelength*1e9)
+        self.c = nm_to_rgb(wavelength)
         self.done = False
 
     def stop(self):
@@ -215,10 +213,14 @@ class RayCanvas(Plane):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.points = []
+        self.wavelengths = []
+        self.c = []
 
     def act_ray(self, ray, point):
         ray.origin = point
         self.points.append(np.dot(self.along, point))
+        self.wavelengths.append(ray.wavelength)
+        self.c.append(ray.c)
 
     def __repr__(self):
         return "RayCanvas({}, {}): {}".format(self.origin, self._normal, self.points)
@@ -266,6 +268,7 @@ class Sphere(TracerObject):
 
     def __repr__(self):
         return "Sphere({}, {})".format(self.origin, self.radius)
+
 
 class ReflectiveSphere(Sphere):
     def act_ray(self, ray, point):
