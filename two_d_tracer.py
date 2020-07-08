@@ -195,6 +195,8 @@ class TracerObject:
         self.origin = origin
         self.n_in = n_in
         self.n_out = n_out
+        self.momenta = []
+        self.m_pos = []
 
     def intersect_d(self, ray):
         """
@@ -223,7 +225,16 @@ class TracerObject:
         :return: None
         """
         ray.origin = point
-        ray.dir -= 2 * self.normal(point) * np.dot(self.normal(point), ray.dir)
+        change = 2 * self.normal(point) * np.dot(self.normal(point), ray.dir)
+        ray.dir -= change
+
+        # Calculate the change in momentum
+        if np.dot(ray.dir, self.normal(point)) < 0:
+            n = self.n_in(ray.wavelength) if callable(self.n_in) else self.n_in
+        else:
+            n = self.n_out(ray.wavelength) if callable(self.n_out) else self.n_out
+        self.momenta.append(change * n / ray.wavelength)
+        self.m_pos.append(point)
 
     def refract(self, ray, point):
         """
@@ -249,7 +260,10 @@ class TracerObject:
         if np.sqrt(sin_i2) > n2/n1:
             self.reflect(ray, point)
         else:
+            m_init = ray.dir * n1 / ray.wavelength
             ray.dir = n1/n2*ray.dir + (n1/n2*cos_i - np.sqrt(1 - (n1/n2)**2 * sin_i2)) * normal
+            self.momenta.append(m_init - ray.dir * n2 / ray.wavelength)
+            self.m_pos.append(point)
 
     def act_ray(self, ray, point):
         """
@@ -279,7 +293,7 @@ class Plane(TracerObject):
         :param normal: A vector normal to the plane, [X, Y], doesn't have to be normalised
         :param radius: distance from the origin over which the plane interacts with rays
         :param n_in: Refractive index outside of the object
-        :param n_out: Refractive index inside of the object (both optional, default to 1)
+        :param n_out: Refractive index inside of the object
         """
         super().__init__(origin, *args, **kwargs)
         self._normal = normalize(np.array(normal))
