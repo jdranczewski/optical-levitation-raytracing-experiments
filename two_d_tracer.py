@@ -7,20 +7,25 @@ from matplotlib.colors import hsv_to_rgb
 
 
 def normalize(x):
+    """
+    Given any vector, return a vector of unit length pointing in the same direction.
+
+    :param x: a vector in array/list form
+    :return: np.array - normalised vector
+    """
     x = x/np.linalg.norm(x)
     return x
 
 
-def mapping(v, a, b, c, d):
-    if v < a:
-        return c
-    if v > b:
-        return d
-    else:
-        return (v-a)/(b-a)*(d-c) + c
-
-
 def nm_to_rgb(wvl, margin=30):
+    """
+    A simple conversion from wavelength (in nanometers) to a corresponding RGB value.
+    Not completely physically correct, just for display purposes.
+
+    :param wvl: Wavelength in nanometers
+    :param margin: easing at the ends of the spectrum towards invisible light (in nm)
+    :return: np.array - (R, G, B), where values are from 0 to 1
+    """
     wv = np.array([380, 460, 480, 515, 590, 630, 670])
     hv = np.array([197, 174, 135, 89, 42, 23, 0])/255
     h = np.interp(wvl, wv, hv)
@@ -29,20 +34,42 @@ def nm_to_rgb(wvl, margin=30):
 
 
 class Scene:
+    """
+    A container for a ray tracing sitaution.
+    """
     def __init__(self, rays, objects):
+        """
+        :param rays: a list of Ray objects
+        :param objects: a list of TracerObject objects
+        """
         self.rays = rays
         self.objects = objects
 
     def step(self):
+        """
+        Make a single ray tracing step - each ray moves towards its next collision.
+
+        :return: None
+        """
         for ray in self.rays:
             if not ray.done:
+                # Find the next intersection for each ray
                 inter, obj = self.intersect(ray)
+                # If no intersection found, terminate ray
                 if obj:
                     obj.act_ray(ray, inter)
                 else:
                     ray.stop()
 
     def run(self, limit=100, margin=1e-10, announce_steps=False):
+        """
+        Run a full ray tracing simulation. Stops when all rays terminated or limit of steps reached.
+
+        :param limit: maximum number of steps
+        :param margin: distance to propagate rays after each collision
+        :param announce_steps: if True, print step info during each step
+        :return: None
+        """
         for i in range(limit):
             self.step()
             self.propagate(margin)
@@ -52,12 +79,26 @@ class Scene:
                 break
 
     def plot(self, ax, true_color=True, ray_kwargs={}):
+        """
+        Given a matplotlib axis object, plot all simulation elements onto it.
+
+        :param ax: a matplotlib axis
+        :param true_color: if True, the ray's actual colour used for plotting. Otherwise matplotlib handles colours
+        :param ray_kwargs: keyword arguments to pass to ax.plot when drawing rays
+        :return: None
+        """
         for ray in self.rays:
             ax.plot(ray.history[:, 0], ray.history[:, 1], c=ray.c if true_color else None, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
 
     def intersect(self, ray):
+        """
+        Find the nearest object a ray will encounter
+
+        :param ray: a Ray object
+        :return: distance to the nearest object, the nearest object
+        """
         d_min = np.inf
         obj_min = None
         for obj in self.objects:
@@ -76,6 +117,9 @@ class Scene:
 
 
 class Ray:
+    """
+    A ray for the ray tracing simulation.
+    """
     def __init__(self, origin, direction, wavelength=467):
         """
         Create a new ray.
@@ -91,14 +135,30 @@ class Ray:
         self.done = False
 
     def stop(self):
+        """
+        Terminate the ray
+
+        :return: None
+        """
         self.done = True
         self.propagate(1)
 
     def propagate(self, d):
+        """
+        Move the origin along the ray's direction. This doesn't take collisions into account.
+
+        :param d: distance to move the origin by
+        :return: None
+        """
         self.origin += self.dir * d
 
     @property
     def origin(self):
+        """
+        The current origin of the ray.
+
+        :return: np.array(X, Y)
+        """
         return self._origin
 
     @origin.setter
@@ -108,6 +168,12 @@ class Ray:
 
     @property
     def angle(self):
+        """
+        The direction of the ray described as an angle in radians, where 0 corresponds to
+        the ray moving along the x axis.
+
+        :return: a float representing the angle in radians
+        """
         return np.arctan2(*self.dir[::-1])
 
     def __repr__(self):
@@ -115,22 +181,58 @@ class Ray:
 
 
 class TracerObject:
+    """
+    Base class for all objects that interact with rays in this ray tracer.
+    """
     def __init__(self, origin, n_in=1, n_out=1):
+        """
+        Create a new TracerObject.
+
+        :param origin: Coordinates of the object's centre - [X, Y]
+        :param n_in: Refractive index outside of the object
+        :param n_out: Refractive index inside of the object
+        """
         self.origin = origin
         self.n_in = n_in
         self.n_out = n_out
 
     def intersect_d(self, ray):
+        """
+        Given a Ray object, return the distance the ray has to travel before intersecting this object.
+
+        :param ray: a Ray object
+        :return: float, distance the ray has to travel to intersect, must be positive
+        """
         raise NotImplementedError
 
     def normal(self, point):
+        """
+        Calculate the normal vector to this object's surface at a given point
+
+        :param point: [X, Y] coordinates of the point
+        :return: np.array, the normal vector, normalised
+        """
         raise NotImplementedError
 
     def reflect(self, ray, point):
+        """
+        Modify the given ray as a result of reflection at a given point.
+
+        :param ray: a Ray object
+        :param point: [X, Y] coordinates of the point
+        :return: None
+        """
         ray.origin = point
         ray.dir -= 2 * self.normal(point) * np.dot(self.normal(point), ray.dir)
 
     def refract(self, ray, point):
+        """
+        Modify the given ray as a result of refraction at a given point.
+
+        :param ray: a Ray object
+        :param point: [X, Y] coordinates of the point
+        :return: None
+        """
         ray.origin = point
 
         # Check what direction the light's going
@@ -150,14 +252,35 @@ class TracerObject:
             ray.dir = n1/n2*ray.dir + (n1/n2*cos_i - np.sqrt(1 - (n1/n2)**2 * sin_i2)) * normal
 
     def act_ray(self, ray, point):
+        """
+        Given a ray object, interact with it (could be a reflection or refraction, or some other action).
+
+        :param ray: a Ray object
+        :param point: [X, Y] coordinates of the point of interaction
+        :return: None
+        """
         raise NotImplementedError
 
     def plot(self, ax):
+        """
+        Graph a representation of this object on the given matplotlib axis
+        :param ax: a matplotlib axis object
+        :return: None
+        """
         pass
 
 
 class Plane(TracerObject):
     def __init__(self, origin, normal, radius=None, *args, **kwargs):
+        """
+        Create a new Plane Object.
+
+        :param origin: Coordinates of the object's centre - [X, Y]
+        :param normal: A vector normal to the plane, [X, Y], doesn't have to be normalised
+        :param radius: distance from the origin over which the plane interacts with rays
+        :param n_in: Refractive index outside of the object
+        :param n_out: Refractive index inside of the object (both optional, default to 1)
+        """
         super().__init__(origin, *args, **kwargs)
         self._normal = normalize(np.array(normal))
         self.along = np.array([self._normal[1], -self._normal[0]])
@@ -210,6 +333,10 @@ class RefractiveSurface(Plane):
 
 
 class RayCanvas(Plane):
+    """
+    A transparent plane object that records data about the rays passing through it.
+    Access .points, .wavelengths, and .c (colour) lists to get the data.
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.points = []
@@ -227,7 +354,21 @@ class RayCanvas(Plane):
 
 
 class Sphere(TracerObject):
+    """
+    A TracerObject shaped like a sphere
+    """
     def __init__(self, origin, radius, mask=None, *args, **kwargs):
+        """
+        Create a new Sphere Object.
+
+        :param origin: coordinates of the object's centre - [X, Y]
+        :param radius: radius of the sphere
+        :param mask: a subset of the circle that interacts with rays expressed as angles in radians. Zero is along x
+                     axis, range is (-pi, pi]. If the angles provided (as a two-element list) make for a correct range,
+                     that range is chosen. If they are in the other direction, the opposite range is chosen.
+        :param n_in: Refractive index outside of the object
+        :param n_out: Refractive index inside of the object (both optional, default to 1)
+        """
         super().__init__(origin, *args, **kwargs)
         self.radius = radius
         self.mask = None if mask is None else np.array(mask)
