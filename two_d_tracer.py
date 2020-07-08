@@ -2,7 +2,7 @@
 This is an early version of a raytracing library, for now working only in 2 dimensions.
 """
 import numpy as np
-from matplotlib.pyplot import Circle
+from matplotlib.patches import Circle, Wedge
 
 
 def normalize(x):
@@ -137,10 +137,11 @@ class TracerObject:
 
 
 class Plane(TracerObject):
-    def __init__(self, origin, normal, *args, **kwargs):
+    def __init__(self, origin, normal, radius=None, *args, **kwargs):
         super().__init__(origin, *args, **kwargs)
         self._normal = normalize(np.array(normal))
         self.along = np.array([self._normal[1], -self._normal[0]])
+        self.radius = radius
 
     def intersect_d(self, ray):
         dot = np.dot(ray.dir, self._normal)
@@ -157,13 +158,21 @@ class Plane(TracerObject):
         raise NotImplementedError
 
     def plot(self, ax):
-        points = np.array([self.origin+self.along, self.origin+0.1*self.along, self.origin+self._normal, self.origin-0.1*self.along, self.origin-self.along])
+        if self.radius is None:
+            points = np.array([self.origin + self.along, self.origin + 0.1 * self.along, self.origin + self._normal,
+                               self.origin - 0.1 * self.along, self.origin - self.along])
+        else:
+            points = np.array([self.origin + self.radius*self.along, self.origin + 0.1 * self.along, self.origin + self._normal,
+                               self.origin - 0.1 * self.along, self.origin - self.radius*self.along])
         ax.plot(points[:, 0], points[:, 1], ":")
 
 
 class Mirror(Plane):
     def act_ray(self, ray, point):
-        self.reflect(ray, point)
+        if self.radius is None or np.linalg.norm(point - self.origin) <= self.radius:
+            self.reflect(ray, point)
+        else:
+            ray.origin = point
 
     def __repr__(self):
         return "Mirror({}, {})".format(self.origin, self._normal)
@@ -171,7 +180,10 @@ class Mirror(Plane):
 
 class RefractiveSurface(Plane):
     def act_ray(self, ray, point):
-        self.refract(ray, point)
+        if self.radius is None or np.linalg.norm(point - self.origin) <= self.radius:
+            self.refract(ray, point)
+        else:
+            ray.origin = point
 
     def __repr__(self):
         return "Mirror({}, {})".format(self.origin, self._normal)
@@ -191,9 +203,10 @@ class RayCanvas(Plane):
 
 
 class Sphere(TracerObject):
-    def __init__(self, origin, radius, *args, **kwargs):
+    def __init__(self, origin, radius, mask=None, *args, **kwargs):
         super().__init__(origin, *args, **kwargs)
         self.radius = radius
+        self.mask = np.array(mask)
 
     def intersect_d(self, ray):
         r = ray.origin - self.origin
@@ -213,10 +226,20 @@ class Sphere(TracerObject):
         return normalize(point-self.origin)
 
     def act_ray(self, ray, point):
-        self.refract(ray, point)
+        # print(np.arctan2(*(point - self.origin)[::-1])*180/np.pi)
+        angle = np.arctan2(*(point - self.origin)[::-1])
+        if (self.mask is None or
+                (self.mask[0] < self.mask[1] and self.mask[0] <= angle <= self.mask[1]) or
+                (self.mask[0] > self.mask[1] and (angle >= self.mask[0] or angle <= self.mask[1]))):
+            self.refract(ray, point)
+        else:
+            ray.origin = point
 
     def plot(self, ax):
-        patch = Circle(self.origin, self.radius, alpha=0.2)
+        if self.mask is None:
+            patch = Circle(self.origin, self.radius, alpha=0.2)
+        else:
+            patch = Wedge(self.origin, self.radius, *self.mask*180/np.pi, 0.1, alpha=0.2)
         ax.add_artist(patch)
 
     def __repr__(self):
@@ -224,4 +247,10 @@ class Sphere(TracerObject):
 
 class ReflectiveSphere(Sphere):
     def act_ray(self, ray, point):
-        self.reflect(ray, point)
+        angle = np.arctan2(*(point - self.origin)[::-1])
+        if (self.mask is None or
+                (self.mask[0] < self.mask[1] and self.mask[0] <= angle <= self.mask[1]) or
+                (self.mask[0] > self.mask[1] and (angle >= self.mask[0] or angle <= self.mask[1]))):
+            self.reflect(ray, point)
+        else:
+            ray.origin = point
