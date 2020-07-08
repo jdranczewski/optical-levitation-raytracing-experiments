@@ -53,7 +53,7 @@ class Scene:
 
     def plot(self, ax, true_color=True, ray_kwargs={}):
         for ray in self.rays:
-            ax.plot(ray.history[:, 0], ray.history[:, 1], c=ray.c, **ray_kwargs)
+            ax.plot(ray.history[:, 0], ray.history[:, 1], c=ray.c if true_color else None, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
 
