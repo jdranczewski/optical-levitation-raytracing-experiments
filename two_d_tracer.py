@@ -78,19 +78,23 @@ class Scene:
             if all([ray.done for ray in self.rays]):
                 break
 
-    def plot(self, ax, true_color=True, ray_kwargs={}):
+    def plot(self, ax, true_color=True, ray_kwargs={}, m_quiver=False, m_quiver_kwargs={}):
         """
         Given a matplotlib axis object, plot all simulation elements onto it.
 
         :param ax: a matplotlib axis
         :param true_color: if True, the ray's actual colour used for plotting. Otherwise matplotlib handles colours
         :param ray_kwargs: keyword arguments to pass to ax.plot when drawing rays
+        :param m_quiver: if True, the changes of momentum are plotted for all TracerObjects in the scene
+        :param m_quiver_kwargs: keyword arguments to pass to ax.quiver when drawing the momentum changes
         :return: None
         """
         for ray in self.rays:
             ax.plot(ray.history[:, 0], ray.history[:, 1], c=ray.c if true_color else None, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
+        if m_quiver:
+            ax.quiver(self.m_pos[:, 0], self.m_pos[:, 1], self.momenta[:, 0], self.momenta[:, 1], **m_quiver_kwargs)
 
     def intersect(self, ray):
         """
@@ -116,10 +120,28 @@ class Scene:
         Propagate the rays along their current direction. Doesn't take collisions into account.
 
         :param d: distance to propagate
-        :return:
+        :return: None
         """
         for ray in self.rays:
             ray.propagate(d)
+
+    @property
+    def momenta(self):
+        """
+        np.array of [X, Y] vectors representing the changes of momentum for all TracerObjects in the scene
+
+        :return: np.array
+        """
+        return np.concatenate([obj.momenta for obj in self.objects])
+
+    @property
+    def m_pos(self):
+        """
+        np.array of [X, Y] vectors representing the positions of changes of momentum for all TracerObjects in the scene
+
+        :return: None
+        """
+        return np.concatenate([obj.m_pos for obj in self.objects])
 
 
 class Ray:
