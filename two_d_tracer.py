@@ -506,7 +506,7 @@ class Parabola(TracerObject):
 
     def plot(self, ax):
         x = np.linspace(*self.xrange, 100)
-        ax.plot(x, self.a*x**2 + self.b*x + self.c)
+        ax.plot(x, self.a*x**2 + self.b*x + self.c, ":")
 
     def __repr__(self):
         return "Parabola({}, {}, {)".format(self.a, self.b, self.c)
