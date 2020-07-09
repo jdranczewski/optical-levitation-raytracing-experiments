@@ -112,6 +112,12 @@ class Scene:
             return np.inf, obj_min
 
     def propagate(self, d):
+        """
+        Propagate the rays along their current direction. Doesn't take collisions into account.
+
+        :param d: distance to propagate
+        :return:
+        """
         for ray in self.rays:
             ray.propagate(d)
 
@@ -184,17 +190,17 @@ class TracerObject:
     """
     Base class for all objects that interact with rays in this ray tracer.
     """
-    def __init__(self, origin, n_in=1, n_out=1):
+    def __init__(self, origin, n_out=1, n_in=1):
         """
         Create a new TracerObject.
 
         :param origin: Coordinates of the object's centre - [X, Y]
-        :param n_in: Refractive index outside of the object
-        :param n_out: Refractive index inside of the object
+        :param n_out: Refractive index outside of the object
+        :param n_in: Refractive index inside of the object
         """
         self.origin = origin
-        self.n_in = n_in
         self.n_out = n_out
+        self.n_in = n_in
         self.momenta = []
         self.m_pos = []
 
@@ -230,9 +236,9 @@ class TracerObject:
 
         # Calculate the change in momentum
         if np.dot(ray.dir, self.normal(point)) < 0:
-            n = self.n_in(ray.wavelength) if callable(self.n_in) else self.n_in
-        else:
             n = self.n_out(ray.wavelength) if callable(self.n_out) else self.n_out
+        else:
+            n = self.n_in(ray.wavelength) if callable(self.n_in) else self.n_in
         self.momenta.append(change * n / ray.wavelength)
         self.m_pos.append(point)
 
@@ -247,8 +253,8 @@ class TracerObject:
         ray.origin = point
 
         # Check what direction the light's going
-        n1 = self.n_in(ray.wavelength) if callable(self.n_in) else self.n_in
-        n2 = self.n_out(ray.wavelength) if callable(self.n_out) else self.n_out
+        n1 = self.n_out(ray.wavelength) if callable(self.n_out) else self.n_out
+        n2 = self.n_in(ray.wavelength) if callable(self.n_in) else self.n_in
         normal = self.normal(point)
         if np.dot(ray.dir, self.normal(point)) > 0:
             n1, n2 = n2, n1
@@ -292,8 +298,8 @@ class Plane(TracerObject):
         :param origin: Coordinates of the object's centre - [X, Y]
         :param normal: A vector normal to the plane, [X, Y], doesn't have to be normalised
         :param radius: distance from the origin over which the plane interacts with rays
-        :param n_in: Refractive index outside of the object
-        :param n_out: Refractive index inside of the object
+        :param n_out: Refractive index outside of the object
+        :param n_in: Refractive index inside of the object
         """
         super().__init__(origin, *args, **kwargs)
         self._normal = normalize(np.array(normal))
@@ -380,8 +386,8 @@ class Sphere(TracerObject):
         :param mask: a subset of the circle that interacts with rays expressed as angles in radians. Zero is along x
                      axis, range is (-pi, pi]. If the angles provided (as a two-element list) make for a correct range,
                      that range is chosen. If they are in the other direction, the opposite range is chosen.
-        :param n_in: Refractive index outside of the object
-        :param n_out: Refractive index inside of the object (both optional, default to 1)
+        :param n_out: Refractive index outside of the object
+        :param n_in: Refractive index inside of the object (both optional, default to 1)
         """
         super().__init__(origin, *args, **kwargs)
         self.radius = radius
