@@ -314,7 +314,7 @@ class TracerObject:
         pass
 
 
-class Plane(TracerObject):
+class Surface(TracerObject):
     def __init__(self, origin, normal, radius=None, *args, **kwargs):
         """
         Create a new Plane Object.
@@ -342,7 +342,13 @@ class Plane(TracerObject):
         return self._normal
 
     def act_ray(self, ray, point):
-        raise NotImplementedError
+        if self.radius is None or np.linalg.norm(point - self.origin) <= self.radius:
+            self.refract(ray, point)
+        else:
+            ray.origin = point
+
+    def __repr__(self):
+        return "Surface({}, {})".format(self.origin, self._normal)
 
     def plot(self, ax):
         if self.radius is None:
@@ -354,7 +360,7 @@ class Plane(TracerObject):
         ax.plot(points[:, 0], points[:, 1], ":")
 
 
-class Mirror(Plane):
+class SurfaceReflective(Surface):
     def act_ray(self, ray, point):
         if self.radius is None or np.linalg.norm(point - self.origin) <= self.radius:
             self.reflect(ray, point)
@@ -365,18 +371,7 @@ class Mirror(Plane):
         return "Mirror({}, {})".format(self.origin, self._normal)
 
 
-class RefractiveSurface(Plane):
-    def act_ray(self, ray, point):
-        if self.radius is None or np.linalg.norm(point - self.origin) <= self.radius:
-            self.refract(ray, point)
-        else:
-            ray.origin = point
-
-    def __repr__(self):
-        return "RefractiveSurface({}, {})".format(self.origin, self._normal)
-
-
-class RayCanvas(Plane):
+class RayCanvas(Surface):
     """
     A transparent plane object that records data about the rays passing through it.
     Access .points, .wavelengths, and .c (colour) lists to get the data.
@@ -455,7 +450,7 @@ class Sphere(TracerObject):
         return "Sphere({}, {})".format(self.origin, self.radius)
 
 
-class ReflectiveSphere(Sphere):
+class SphereReflective(Sphere):
     def act_ray(self, ray, point):
         angle = np.arctan2(*(point - self.origin)[::-1])
         if (self.mask is None or
@@ -512,6 +507,6 @@ class Parabola(TracerObject):
         return "Parabola({}, {}, {)".format(self.a, self.b, self.c)
 
 
-class ReflectiveParabola(Parabola):
+class ParabolaReflective(Parabola):
     def act_ray(self, ray, point):
         self.reflect(ray, point)
