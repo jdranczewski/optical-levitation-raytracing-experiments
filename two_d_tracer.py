@@ -1,5 +1,7 @@
 """
 This is an early version of a raytracing library, for now working only in 2 dimensions.
+
+NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e-9 (wavelength is stored in nm)
 """
 import numpy as np
 from matplotlib.patches import Circle, Wedge
@@ -132,7 +134,7 @@ class Scene:
 
         :return: np.array
         """
-        return np.concatenate([obj.momenta for obj in self.objects])
+        return np.concatenate([obj.momenta for obj in self.objects if len(obj.momenta)])
 
     @property
     def m_pos(self):
@@ -141,7 +143,7 @@ class Scene:
 
         :return: None
         """
-        return np.concatenate([obj.m_pos for obj in self.objects])
+        return np.concatenate([obj.m_pos for obj in self.objects if len(obj.m_pos)])
 
 
 class Ray:
@@ -462,3 +464,49 @@ class ReflectiveSphere(Sphere):
             self.reflect(ray, point)
         else:
             ray.origin = point
+
+
+class Parabola(TracerObject):
+    def __init__(self, a, b, c, *args, **kwargs):
+        super().__init__([0, 0], *args, **kwargs)
+        self.a = a
+        self.b = b
+        self.c = c
+
+    def intersect_d(self, ray):
+        P_x, P_y = ray.origin
+        D_x, D_y = ray.dir
+        a, b, c = self.a, self.b, self.c
+        if not D_x:
+            d = (P_x**2*a + P_x*b - P_y + c)/D_y
+            if d > 0:
+                return d
+            else:
+                return np.inf
+        d = -(2 * D_x * P_x * a + D_x * b - D_y) / (2 * D_x ** 2 * a) - np.sqrt(
+            4 * D_x ** 2 * P_y * a - 4 * D_x ** 2 * a * c + D_x ** 2 * b ** 2 - 4 * D_x * D_y * P_x * a - 2 * D_x * D_y * b + D_y ** 2) / (
+                    2 * D_x ** 2 * a)
+        if d > 0:
+            return d
+        d = -(2*D_x*P_x*a + D_x*b - D_y)/(2*D_x**2*a) + np.sqrt(4*D_x**2*P_y*a - 4*D_x**2*a*c + D_x**2*b**2 - 4*D_x*D_y*P_x*a - 2*D_x*D_y*b + D_y**2)/(2*D_x**2*a)
+        if d > 0:
+            return d
+        return np.inf
+
+    def normal(self, point):
+        alpha = np.arctan(2*self.a*point[0]+self.b)
+        return np.array([np.sin(alpha), -np.cos(alpha)])
+
+    def act_ray(self, ray, point):
+        self.refract(ray, point)
+
+    def plot(self, ax):
+        pass
+
+    def __repr__(self):
+        return "Parabola({}, {}, {)".format(self.a, self.b, self.c)
+
+
+class ReflectiveParabola(Parabola):
+    def act_ray(self, ray, point):
+        self.reflect(ray, point)
