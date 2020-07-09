@@ -197,6 +197,10 @@ class Ray:
         self.history = np.append(self.history, [self._origin], axis=0)
 
     @property
+    def normal(self):
+        return self.dir[::-1] * [1,-1]
+
+    @property
     def angle(self):
         """
         The direction of the ray described as an angle in radians, where 0 corresponds to
@@ -352,10 +356,10 @@ class Surface(TracerObject):
 
     def plot(self, ax):
         if self.radius is None:
-            points = np.array([self.origin + self.along, self.origin + 0.1 * self.along, self.origin + self._normal,
+            points = np.array([self.origin + self.along, self.origin + 0.1 * self.along, self.origin + 0.3*self._normal,
                                self.origin - 0.1 * self.along, self.origin - self.along])
         else:
-            points = np.array([self.origin + self.radius*self.along, self.origin + 0.1 * self.along, self.origin + self._normal,
+            points = np.array([self.origin + self.radius*self.along, self.origin + 0.1 * self.along, self.origin + 0.3*self._normal,
                                self.origin - 0.1 * self.along, self.origin - self.radius*self.along])
         ax.plot(points[:, 0], points[:, 1], ":")
 
@@ -369,6 +373,39 @@ class SurfaceReflective(Surface):
 
     def __repr__(self):
         return "Mirror({}, {})".format(self.origin, self._normal)
+
+
+class LineSegment(Surface):
+    def __init__(self, A, B, *args, **kwargs):
+        """
+        Create a refractive line segment
+
+        :param A: Start point of the segment
+        :param B: End point of the segment
+        :param args: Surface arguments
+        :param kwargs: Surface keyword arguments (note: radius is not supported by this object)
+        """
+        self.A = np.array(A)
+        self.B = np.array(B)
+        along = normalize(self.A - self.B)
+        normal = np.array([along[1], -along[0]])
+        super().__init__(np.mean([A, B], axis=0), normal, None, *args, **kwargs)
+
+    def intersect_d(self, ray):
+        r_n = ray.normal
+        if np.dot(r_n, self.A-ray.origin) * np.dot(r_n, self.B-ray.origin) < 0:
+            return super().intersect_d(ray)
+        else:
+            return np.inf
+
+    def plot(self, ax):
+        stack = np.stack((self.A-0.2*self._normal, self.A, self.B, self.B-0.2*self._normal))
+        ax.plot(stack[:, 0], stack[:, 1], ":")
+
+
+class LineSegmentReflective(LineSegment):
+    def act_ray(self, ray, point):
+        self.reflect(ray, point)
 
 
 class RayCanvas(Surface):
