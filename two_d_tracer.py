@@ -467,11 +467,12 @@ class ReflectiveSphere(Sphere):
 
 
 class Parabola(TracerObject):
-    def __init__(self, a, b, c, *args, **kwargs):
+    def __init__(self, a, b, c, xrange=(-5,5), *args, **kwargs):
         super().__init__([0, 0], *args, **kwargs)
         self.a = a
         self.b = b
         self.c = c
+        self.xrange = xrange
 
     def intersect_d(self, ray):
         P_x, P_y = ray.origin
@@ -498,10 +499,14 @@ class Parabola(TracerObject):
         return np.array([np.sin(alpha), -np.cos(alpha)])
 
     def act_ray(self, ray, point):
-        self.refract(ray, point)
+        if self.xrange[0] <= point[0] <= self.xrange[1]:
+            self.refract(ray, point)
+        else:
+            ray.origin = point
 
     def plot(self, ax):
-        pass
+        x = np.linspace(*self.xrange, 100)
+        ax.plot(x, self.a*x**2 + self.b*x + self.c)
 
     def __repr__(self):
         return "Parabola({}, {}, {)".format(self.a, self.b, self.c)
