@@ -141,9 +141,13 @@ class Scene:
         """
         np.array of [X, Y] vectors representing the positions of changes of momentum for all TracerObjects in the scene
 
-        :return: None
+        :return: np.array
         """
         return np.concatenate([obj.m_pos for obj in self.objects if len(obj.m_pos)])
+
+    @property
+    def momentum(self):
+        return np.sum(self.momenta, axis=0)
 
 
 class Ray:
@@ -316,6 +320,42 @@ class TracerObject:
         :return: None
         """
         pass
+
+    @property
+    def momentum(self):
+        return np.sum(self.momenta, axis=0)
+
+
+class ObjectContainer:
+    def __init__(self, objects, label=None):
+        self.objects = objects
+        self.label = label
+
+    @property
+    def momenta(self):
+        """
+        np.array of [X, Y] vectors representing the changes of momentum for all TracerObjects in the Container
+
+        :return: np.array
+        """
+        return np.concatenate([obj.momenta for obj in self.objects if len(obj.momenta)])
+
+    @property
+    def m_pos(self):
+        """
+        np.array of [X, Y] vectors representing the positions of changes of momentum
+        for all TracerObjects in the Container
+
+        :return: np.array
+        """
+        return np.concatenate([obj.m_pos for obj in self.objects if len(obj.m_pos)])
+
+    @property
+    def momentum(self):
+        return np.sum(self.momenta, axis=0)
+
+    def __repr__(self):
+        return ("{}: ".format(self.label) if self.label else "") + "ObjectContainer({})".format(self.objects)
 
 
 class Surface(TracerObject):
