@@ -6,6 +6,8 @@ NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e-9 (
 import numpy as np
 from matplotlib.patches import Circle, Wedge
 from matplotlib.colors import hsv_to_rgb
+from scipy.special import erfinv
+import random
 
 
 ############################
@@ -36,6 +38,31 @@ def nm_to_rgb(wvl, margin=30):
     h = np.interp(wvl, wv, hv)
     v = np.interp(wvl, [380, 380+margin, 740-margin, 740], [0,1,1,0])
     return hsv_to_rgb((h, 1, v))
+
+
+def seed(s):
+    """
+    Seed two_d_tracer's random library's instance.
+
+    :param s: seed
+    :return: None
+    """
+    random.seed(s)
+
+
+def gaussian_randoms_factory(w):
+    """
+    A factory for making random number generators which follow the gaussian beam intensity distribution
+    (in terms of radius)
+
+    :param w: width of the beam
+    :return: a random number generating function
+    """
+    return lambda: w/np.sqrt(2)*erfinv(random.random())
+
+
+def random_sign():
+    return 2*(random.randint(0, 1) - 0.5)
 
 
 #################################
@@ -165,18 +192,21 @@ class Ray:
     """
     A ray for the ray tracing simulation.
     """
-    def __init__(self, origin, direction, wavelength=467):
+    def __init__(self, origin, direction, wavelength=467, weight=1):
         """
         Create a new ray.
 
         :param origin: 1D, 2-element list describing the ray's origin in 2D space (x,y)
         :param direction: A unit vector pointed in the ray's propagation direction
+        :param wavelength: the ray's wavelength in nanometers
+        :param weight: the number of real photons this ray corresponds to. Used in momentum calculations
         """
         self._origin = np.array(origin)
         self.history = np.array([self._origin])
         self.dir = normalize(np.array(direction))
         self.wavelength=wavelength
         self.c = nm_to_rgb(wavelength)
+        self.weight = weight
         self.done = False
 
     def stop(self):
@@ -234,6 +264,22 @@ class Ray:
         return "Ray({}, {})".format(self._origin, self.dir)
 
 
+class RayBundle:
+    def __init__(self, origin, dir, n, energy, wavelength, r_generator, theta_generator, label=None):
+        self.origin = np.array(origin)
+        self.dir = np.array(dir)
+        self.normal = self.dir[::-1] * [1,-1]
+        self.energy = energy
+        self.wavelength = wavelength
+        self.label = label
+        # Calculate ray weights
+        photon_number = energy / (6.62607004e-25 * 299792458/wavelength*1e-9)
+        weight = photon_number / n
+        # Generate the rays
+        pos = lambda: self.origin + self.normal * r_generator() * theta_generator()
+        self.rays = [Ray(pos(), dir, wavelength, weight) for i in range(n)]
+
+
 class TracerObject:
     """
     Base class for all objects that interact with rays in this ray tracer.
@@ -287,7 +333,7 @@ class TracerObject:
             n = self.n_out(ray.wavelength) if callable(self.n_out) else self.n_out
         else:
             n = self.n_in(ray.wavelength) if callable(self.n_in) else self.n_in
-        self.momenta.append(change * n / ray.wavelength)
+        self.momenta.append(change * n / ray.wavelength * ray.weight)
         self.m_pos.append(point)
 
     def refract(self, ray, point):
@@ -316,7 +362,7 @@ class TracerObject:
         else:
             m_init = ray.dir * n1 / ray.wavelength
             ray.dir = n1/n2*ray.dir + (n1/n2*cos_i - np.sqrt(1 - (n1/n2)**2 * sin_i2)) * normal
-            self.momenta.append(m_init - ray.dir * n2 / ray.wavelength)
+            self.momenta.append((m_init - ray.dir * n2 / ray.wavelength) * ray.weight)
             self.m_pos.append(point)
 
     def act_ray(self, ray, point):
