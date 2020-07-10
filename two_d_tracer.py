@@ -8,6 +8,9 @@ from matplotlib.patches import Circle, Wedge
 from matplotlib.colors import hsv_to_rgb
 
 
+############################
+#     Helper functions     #
+############################
 def normalize(x):
     """
     Given any vector, return a vector of unit length pointing in the same direction.
@@ -35,6 +38,9 @@ def nm_to_rgb(wvl, margin=30):
     return hsv_to_rgb((h, 1, v))
 
 
+#################################
+#     Main abstract classes     #
+#################################
 class Scene:
     """
     A container for a ray tracing sitaution.
@@ -147,6 +153,11 @@ class Scene:
 
     @property
     def momentum(self):
+        """
+        Total momentum acquired by all TracerObjects within the scene.
+
+        :return: float
+        """
         return np.sum(self.momenta, axis=0)
 
 
@@ -202,6 +213,11 @@ class Ray:
 
     @property
     def normal(self):
+        """
+        A vector normal to the ray's direction.
+
+        :return: np.array - [X, Y]
+        """
         return self.dir[::-1] * [1,-1]
 
     @property
@@ -323,11 +339,37 @@ class TracerObject:
 
     @property
     def momentum(self):
+        """
+        Total momentum acquired by this object
+
+        :return: np.array - [X,Y]
+        """
         return np.sum(self.momenta, axis=0)
+
+    @property
+    def angular_momentum(self, origin=None):
+        """
+        Total angular momentum acquired by this object around its origin or a given origin.
+
+        :param origin: If given, the angular momentum will be calculated around this point.
+        :return: float, signed according to the right hand rule.
+        """
+        o = self.origin if origin is None else origin
+        r = np.array(self.m_pos) - o
+        p = np.array(self.momenta)
+        am = r[:, 0] * p[:, 1] - r[:, 1] * p[:, 0]
+        return np.sum(am)
 
 
 class ObjectContainer:
     def __init__(self, objects, label=None):
+        """
+        A container for objects. Can be used to create more complicated systems (like a prism with three LineSegments),
+        allowing for better labelling and easier momentum inspection.
+
+        :param objects: A list of objects that go in the container
+        :param label: A label which will be used in the objects str() representation
+        """
         self.objects = objects
         self.label = label
 
@@ -352,12 +394,20 @@ class ObjectContainer:
 
     @property
     def momentum(self):
+        """
+        np.array of [X, Y] vectors representing the total change of momentum for all TracerObjects in the Container
+
+        :return: np.array
+        """
         return np.sum(self.momenta, axis=0)
 
     def __repr__(self):
         return ("{}: ".format(self.label) if self.label else "") + "ObjectContainer({})".format(self.objects)
 
 
+##################################
+#     Specific TracerObjects     #
+##################################
 class Surface(TracerObject):
     def __init__(self, origin, normal, radius=None, *args, **kwargs):
         """
