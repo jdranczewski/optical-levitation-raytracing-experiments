@@ -1,5 +1,17 @@
 """
-This is an early version of a raytracing library, for now working only in 2 dimensions.
+This is an early version of a raytracing library, for now working only in 2 dimensions, created during
+an Undergraduate Research Experience Programme placement at Imperial College London 2020 by Jakub Dranczewski.
+
+There should be a Jupyter Notebook in this directory called "two-d-tracer-experiments.ipynb" - this contains
+examples of most things that can be done with this library.
+
+To contact me, try (in no particular order)
+* jbd17@ic.ac.uk (unless I left)
+* jakub.dranczewski@gmail.com
+* jdranczewski.github.io (there should be an email in the CV)
+* some other social media platform
+
+This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 
 NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e-9 (wavelength is stored in nm)
 """
@@ -308,6 +320,13 @@ class TracerObject:
         """
         Create a new TracerObject.
 
+        NOTE about refractive indices: the Rays *do not* keep track of the refractive index of the medium.
+        The refraction angle is calculated completely locally, on the assumption that all "volumes" are correctly
+        constrained with TracerObjects that have correctly set n_in and n_out.
+
+        This means that when constructing a flat glass slab, you have to make sure that the Surface objects
+        constraining it have the same n_in, otherwise you *will* get unphysical behaviour.
+
         :param origin: Coordinates of the object's centre - [X, Y]
         :param n_out: Refractive index outside of the object
         :param n_in: Refractive index inside of the object
@@ -397,7 +416,8 @@ class TracerObject:
 
     def plot(self, ax):
         """
-        Graph a representation of this object on the given matplotlib axis
+        Graph a representation of this object on the given matplotlib axis.
+
         :param ax: a matplotlib axis object
         :return: None
         """
@@ -511,6 +531,13 @@ class Surface(TracerObject):
         return "Surface({}, {})".format(self.origin, self._normal)
 
     def plot(self, ax):
+        """
+        Graph a representation of this object on the given matplotlib axis. In case of the Surface, the
+        small triangle represents the direction of the normal.
+
+        :param ax: a matplotlib axis object
+        :return: None
+        """
         if self.radius is None:
             points = np.array([self.origin + self.along, self.origin + 0.1 * self.along, self.origin + 0.3*self._normal,
                                self.origin - 0.1 * self.along, self.origin - self.along])
@@ -555,6 +582,12 @@ class LineSegment(Surface):
             return np.inf
 
     def plot(self, ax):
+        """
+        Graph a representation of this object on the given matplotlib axis.
+
+        :param ax: a matplotlib axis object
+        :return: None
+        """
         stack = np.stack((self.A-0.2*self._normal, self.A, self.B, self.B-0.2*self._normal))
         ax.plot(stack[:, 0], stack[:, 1], ":")
 
@@ -583,6 +616,15 @@ class RayCanvas(Surface):
 
     def __repr__(self):
         return "RayCanvas({}, {}): {}".format(self.origin, self._normal, self.points)
+
+    def plot(self, ax):
+        if self.radius is None:
+            points = np.array([self.origin + self.along, self.origin + 0.1 * self.along, self.origin + 0.3*self._normal,
+                               self.origin - 0.1 * self.along, self.origin - self.along])
+        else:
+            points = np.array([self.origin + self.radius*self.along, self.origin + 0.1 * self.along, self.origin + 0.3*self._normal,
+                               self.origin - 0.1 * self.along, self.origin - self.radius*self.along])
+        ax.plot(points[:, 0], points[:, 1], "--")
 
 
 class Sphere(TracerObject):
