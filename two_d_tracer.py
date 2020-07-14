@@ -65,6 +65,26 @@ def random_sign():
     return 2*(random.randint(0, 1) - 0.5)
 
 
+def linspace(a, b, N):
+    """
+    A version of np.linspace which tries to get even, and (most importantly) symmetric spacings between the
+    returned numbers. Breaks down when a and b are different orders of magnitude. Does well when they're the same,
+    unless the interval goes through 0, in which case the number distribution will be symmetric, but not exactly
+    uniform. The distribution may not also reach a and b exactly, but will exactly respect N.
+
+    :param a: Start of the interval
+    :param b: End of the interval
+    :param N: Number of points to return
+    :return: np.array
+    """
+    d = (b-a)/(N-1)/2
+    m = (b+a)/2
+    if N % 2:
+        return np.concatenate((np.arange(m, a-d, -2*d)[:0:-1], np.arange(m, b+d, 2*d)))
+    else:
+        return np.concatenate((np.arange(m-d, a-d, -2*d)[::-1], np.arange(m+d, b+d, 2*d)))
+
+
 #################################
 #     Main abstract classes     #
 #################################
