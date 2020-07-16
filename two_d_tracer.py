@@ -48,7 +48,7 @@ def nm_to_rgb(wvl, margin=30):
     wv = np.array([380, 460, 480, 515, 590, 630, 670])
     hv = np.array([197, 174, 135, 89, 42, 23, 0])/255
     h = np.interp(wvl, wv, hv)
-    v = np.interp(wvl, [380, 380+margin, 740-margin, 740], [0,1,1,0])
+    v = np.interp(wvl, [380, 380+margin, 740-margin, 740], [0, 1, 1, 0])
     return hsv_to_rgb((h, 1, v))
 
 
@@ -75,6 +75,20 @@ def gaussian_randoms_factory(w):
 
 def random_sign():
     return 2*(random.randint(0, 1) - 0.5)
+
+
+def gaussian_intensity_factory(total_power, w, origin):
+    """
+    This returns a function that gives the intensity of a Gaussian beam with given properties at a certain distance.
+    Note that this is normalised for the 2D case (so integrating in one direction gives total_power.
+
+    :param total_power: Total power in the beam
+    :param w: radius of the beam (defined as usual for Gaussian beams)
+    :param origin: [X, Y] - origin of the distribution in 2D space - note that this is separate from the RayBundle
+                   origin to allow for sampling parts of the beam
+    :return: float
+    """
+    return lambda pos: np.sqrt(2/np.pi)* total_power/w * np.exp(-2*(pos-origin).dot(pos-origin)/w**2)
 
 
 def linspace(a, b, N):
@@ -157,7 +171,8 @@ class Scene:
         :return: None
         """
         for ray in self.rays:
-            ax.plot(ray.history[:, 0], ray.history[:, 1], c=ray.c if true_color else None, **ray_kwargs)
+            ax.plot(ray.history[:, 0], ray.history[:, 1], c=ray.c if true_color else None,
+                    alpha=ray.alpha, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
         if m_quiver:
@@ -224,7 +239,7 @@ class Ray:
     """
     A ray for the ray tracing simulation.
     """
-    def __init__(self, origin, direction, wavelength=467, weight=1):
+    def __init__(self, origin, direction, wavelength=467, weight=1, max_weight=None):
         """
         Create a new ray.
 
@@ -236,9 +251,10 @@ class Ray:
         self._origin = np.array(origin)
         self.history = np.array([self._origin])
         self.dir = normalize(np.array(direction))
-        self.wavelength=wavelength
+        self.wavelength = wavelength
         self.c = nm_to_rgb(wavelength)
         self.weight = weight
+        self.max_weight = max_weight if max_weight else weight
         self.done = False
 
     def stop(self):
@@ -280,7 +296,7 @@ class Ray:
 
         :return: np.array - [X, Y]
         """
-        return self.dir[::-1] * [1,-1]
+        return self.dir[::-1] * [1, -1]
 
     @property
     def angle(self):
@@ -292,11 +308,43 @@ class Ray:
         """
         return np.arctan2(*self.dir[::-1])
 
+    @property
+    def alpha(self):
+        """
+        The alpha (transparency) at whihc this ray should be rendered.
+
+        :return: float [0,1]
+        """
+        return self.weight/self.max_weight
+
     def __repr__(self):
         return "Ray({}, {})".format(self._origin, self.dir)
 
 
 class RayBundle:
+    def __init__(self, origin, dir, radius, n, wavelength, intensity, label=None):
+        self.origin = np.array(origin)
+        self.dir = np.array(dir)
+        self.normal = self.dir[::-1] * [1,-1]
+        self.wavelength = wavelength
+        self.label = label
+        # Generate the rays
+        self.rays = []
+        spacing = 2*radius/n
+        photon_energy = 6.62607004e-25 * 299792458/wavelength*1e-9
+        for i in range(n):
+            pos = self.origin + (i-(n-1)/2)*spacing*self.normal
+            weight = intensity(pos) * spacing / photon_energy
+            self.rays.append(Ray(pos, dir, wavelength, weight))
+        max_weight = np.amax([ray.weight for ray in self.rays])
+        for ray in self.rays:
+            ray.max_weight = max_weight
+
+    def __repr__(self):
+        return ("{}: ".format(self.label) if self.label else "") + "RayBundle({} rays)".format(len(self.rays))
+
+
+class RandomRayBundle:
     def __init__(self, origin, dir, n, energy, wavelength, r_generator, theta_generator, label=None):
         self.origin = np.array(origin)
         self.dir = np.array(dir)
@@ -310,6 +358,9 @@ class RayBundle:
         # Generate the rays
         pos = lambda: self.origin + self.normal * r_generator() * theta_generator()
         self.rays = [Ray(pos(), dir, wavelength, weight) for i in range(n)]
+
+    def __repr__(self):
+        return ("{}: ".format(self.label) if self.label else "") + "RandomRayBundle({} rays)".format(len(self.rays))
 
 
 class TracerObject:
@@ -607,12 +658,14 @@ class RayCanvas(Surface):
         self.points = []
         self.wavelengths = []
         self.c = []
+        self.weights = []
 
     def act_ray(self, ray, point):
         ray.origin = point
         self.points.append(np.dot(self.along, point))
         self.wavelengths.append(ray.wavelength)
         self.c.append(ray.c)
+        self.weights.append(ray.weight)
 
     def __repr__(self):
         return "RayCanvas({}, {}): {}".format(self.origin, self._normal, self.points)
@@ -625,6 +678,10 @@ class RayCanvas(Surface):
             points = np.array([self.origin + self.radius*self.along, self.origin + 0.1 * self.along, self.origin + 0.3*self._normal,
                                self.origin - 0.1 * self.along, self.origin - self.radius*self.along])
         ax.plot(points[:, 0], points[:, 1], "--")
+
+    @property
+    def alphas(self):
+        return self.weights/np.amax(self.weights)
 
 
 class Sphere(TracerObject):
@@ -697,7 +754,7 @@ class SphereReflective(Sphere):
 
 
 class Parabola(TracerObject):
-    def __init__(self, a, b, c, xrange=(-5,5), *args, **kwargs):
+    def __init__(self, a, b, c, xrange=(-5, 5), *args, **kwargs):
         super().__init__([0, 0], *args, **kwargs)
         self.a = a
         self.b = b
@@ -744,4 +801,7 @@ class Parabola(TracerObject):
 
 class ParabolaReflective(Parabola):
     def act_ray(self, ray, point):
-        self.reflect(ray, point)
+        if self.xrange[0] <= point[0] <= self.xrange[1]:
+            self.reflect(ray, point)
+        else:
+            ray.origin = point
