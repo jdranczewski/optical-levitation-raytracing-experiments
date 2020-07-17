@@ -29,11 +29,10 @@ def normalize(x):
     """
     Given any vector, return a vector of unit length pointing in the same direction.
 
-    :param x: a vector in array/list form
+    :param x: a vector in np.array form
     :return: np.array - normalised vector
     """
-    x = x/np.linalg.norm(x)
-    return x
+    return x / np.sqrt(x.dot(x))
 
 
 def nm_to_rgb(wvl, margin=30):
@@ -132,15 +131,19 @@ class Scene:
 
         :return: None
         """
+        new_rays = []
         for ray in self.rays:
             if not ray.done:
                 # Find the next intersection for each ray
                 inter, obj = self.intersect(ray)
                 # If no intersection found, terminate ray
                 if obj:
-                    obj.act_ray(ray, inter)
+                    nr = obj.act_ray(ray, inter)
+                    if nr:
+                        new_rays.append(nr)
                 else:
                     ray.stop()
+        self.rays += new_rays
 
     def run(self, limit=100, margin=1e-10, announce_steps=False):
         """
@@ -239,7 +242,7 @@ class Ray:
     """
     A ray for the ray tracing simulation.
     """
-    def __init__(self, origin, direction, wavelength=467, weight=1, max_weight=None):
+    def __init__(self, origin, direction, wavelength=467, weight=1, max_weight=None, c=None):
         """
         Create a new ray.
 
@@ -249,10 +252,10 @@ class Ray:
         :param weight: the number of real photons this ray corresponds to. Used in momentum calculations
         """
         self._origin = np.array(origin)
-        self.history = np.array([self._origin])
+        self._history = [self._origin]
         self.dir = normalize(np.array(direction))
         self.wavelength = wavelength
-        self.c = nm_to_rgb(wavelength)
+        self.c = c if c is not None else nm_to_rgb(wavelength)
         self.weight = weight
         self.max_weight = max_weight if max_weight else weight
         self.done = False
@@ -287,7 +290,16 @@ class Ray:
     @origin.setter
     def origin(self, new_origin):
         self._origin = np.array(new_origin)
-        self.history = np.append(self.history, [self._origin], axis=0)
+        self._history.append(self._origin)
+
+    @property
+    def history(self):
+        """
+        The points at which this ray has been.
+
+        :return: np.array: [[X,Y], [X,Y], ...]
+        """
+        return np.array(self._history)
 
     @property
     def normal(self):
@@ -328,6 +340,7 @@ class RayBundle:
         self.normal = self.dir[::-1] * [1,-1]
         self.wavelength = wavelength
         self.label = label
+        c = nm_to_rgb(wavelength)
         # Generate the rays
         self.rays = []
         spacing = 2*radius/n
@@ -335,7 +348,7 @@ class RayBundle:
         for i in range(n):
             pos = self.origin + (i-(n-1)/2)*spacing*self.normal
             weight = intensity(pos) * spacing / photon_energy
-            self.rays.append(Ray(pos, dir, wavelength, weight))
+            self.rays.append(Ray(pos, dir, wavelength, weight,c=c))
         max_weight = np.amax([ray.weight for ray in self.rays])
         for ray in self.rays:
             ray.max_weight = max_weight
@@ -414,15 +427,17 @@ class TracerObject:
         :param point: [X, Y] coordinates of the point
         :return: None
         """
+        # Check which refractive index we should be working with
+        if np.dot(ray.dir, self.normal(point)) < 0:
+            n = self.n_out(ray.wavelength) if callable(self.n_out) else self.n_out
+        else:
+            n = self.n_in(ray.wavelength) if callable(self.n_in) else self.n_in
+
         ray.origin = point
         change = 2 * self.normal(point) * np.dot(self.normal(point), ray.dir)
         ray.dir -= change
 
         # Calculate the change in momentum
-        if np.dot(ray.dir, self.normal(point)) < 0:
-            n = self.n_out(ray.wavelength) if callable(self.n_out) else self.n_out
-        else:
-            n = self.n_in(ray.wavelength) if callable(self.n_in) else self.n_in
         self.momenta.append(change * n / ray.wavelength * ray.weight)
         self.m_pos.append(point)
 
@@ -450,10 +465,25 @@ class TracerObject:
         if np.sqrt(sin_i2) > n2/n1:
             self.reflect(ray, point)
         else:
+            # Make a copy of the original ray
+            ray_reflected = Ray(point, ray.dir, ray.wavelength, ray.weight, ray.max_weight, ray.c)
+            # Calculate the reflection and refraction coefficients
+            cos_t = np.sqrt(1 - (n1/n2)**2*(1-cos_i**2))
+            R_perp = ((n1*cos_i-n2*cos_t) / (n1*cos_i+n2*cos_t))**2
+            R_para = ((n2*cos_i-n1*cos_t) / (n2*cos_i+n1*cos_t))**2
+            R = (R_perp + R_para) / 2
+            T = 1 - R
+            # Calculate the original momentum of the refracted ray portion
             m_init = ray.dir * n1 / ray.wavelength
+            # Refract the original ray
             ray.dir = n1/n2*ray.dir + (n1/n2*cos_i - np.sqrt(1 - (n1/n2)**2 * sin_i2)) * normal
+            ray.weight *= T
             self.momenta.append((m_init - ray.dir * n2 / ray.wavelength) * ray.weight)
             self.m_pos.append(point)
+            # Reflect the new ray
+            ray_reflected.weight *= R
+            self.reflect(ray_reflected, point)
+            return ray_reflected
 
     def act_ray(self, ray, point):
         """
@@ -461,7 +491,7 @@ class TracerObject:
 
         :param ray: a Ray object
         :param point: [X, Y] coordinates of the point of interaction
-        :return: None
+        :return: None, or any new rays created as a result of this interaction
         """
         raise NotImplementedError
 
@@ -574,7 +604,7 @@ class Surface(TracerObject):
 
     def act_ray(self, ray, point):
         if self.radius is None or np.linalg.norm(point - self.origin) <= self.radius:
-            self.refract(ray, point)
+            return self.refract(ray, point)
         else:
             ray.origin = point
 
@@ -601,7 +631,7 @@ class Surface(TracerObject):
 class SurfaceReflective(Surface):
     def act_ray(self, ray, point):
         if self.radius is None or np.linalg.norm(point - self.origin) <= self.radius:
-            self.reflect(ray, point)
+            return self.reflect(ray, point)
         else:
             ray.origin = point
 
@@ -645,7 +675,7 @@ class LineSegment(Surface):
 
 class LineSegmentReflective(LineSegment):
     def act_ray(self, ray, point):
-        self.reflect(ray, point)
+        return self.reflect(ray, point)
 
 
 class RayCanvas(Surface):
@@ -682,6 +712,13 @@ class RayCanvas(Surface):
     @property
     def alphas(self):
         return self.weights/np.amax(self.weights)
+
+    @property
+    def ca(self):
+        """
+        :return: np.array, with [R,G,B,alpha] data for all points
+        """
+        return np.column_stack((np.array(self.c), self.alphas))
 
 
 class Sphere(TracerObject):
@@ -727,7 +764,7 @@ class Sphere(TracerObject):
         if (self.mask is None or
                 (self.mask[0] < self.mask[1] and self.mask[0] <= angle <= self.mask[1]) or
                 (self.mask[0] > self.mask[1] and (angle >= self.mask[0] or angle <= self.mask[1]))):
-            self.refract(ray, point)
+            return self.refract(ray, point)
         else:
             ray.origin = point
 
@@ -748,7 +785,7 @@ class SphereReflective(Sphere):
         if (self.mask is None or
                 (self.mask[0] < self.mask[1] and self.mask[0] <= angle <= self.mask[1]) or
                 (self.mask[0] > self.mask[1] and (angle >= self.mask[0] or angle <= self.mask[1]))):
-            self.reflect(ray, point)
+            return self.reflect(ray, point)
         else:
             ray.origin = point
 
@@ -787,7 +824,7 @@ class Parabola(TracerObject):
 
     def act_ray(self, ray, point):
         if self.xrange[0] <= point[0] <= self.xrange[1]:
-            self.refract(ray, point)
+            return self.refract(ray, point)
         else:
             ray.origin = point
 
@@ -802,6 +839,6 @@ class Parabola(TracerObject):
 class ParabolaReflective(Parabola):
     def act_ray(self, ray, point):
         if self.xrange[0] <= point[0] <= self.xrange[1]:
-            self.reflect(ray, point)
+            return self.reflect(ray, point)
         else:
             ray.origin = point
