@@ -162,7 +162,7 @@ class Scene:
             if all([ray.done for ray in self.rays]):
                 break
 
-    def plot(self, ax, true_color=True, ray_kwargs={}, m_quiver=False, m_quiver_kwargs={}):
+    def plot(self, ax, true_color=True, ray_kwargs={}, m_quiver=False, m_quiver_kwargs={}, sparse=1):
         """
         Given a matplotlib axis object, plot all simulation elements onto it.
 
@@ -170,16 +170,19 @@ class Scene:
         :param true_color: if True, the ray's actual colour used for plotting. Otherwise matplotlib handles colours
         :param ray_kwargs: keyword arguments to pass to ax.plot when drawing rays
         :param m_quiver: if True, the changes of momentum are plotted for all TracerObjects in the scene
-        :param m_quiver_kwargs: keyword arguments to pass to ax.quiver when drawing the momentum changes
+        :param m_quiver_kwargs: keyword arguments to pass to ax.quiver when drawing the momentum changes, most useful
+                                example being "scale", which changes the size of the arrows
+        :param sparse: integer, if specified to be n, only every nth ray and quiver arrow is drawn
         :return: None
         """
-        for ray in self.rays:
+        for ray in self.rays[::sparse]:
             ax.plot(ray.history[:, 0], ray.history[:, 1], c=ray.c if true_color else None,
                     alpha=ray.alpha, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
         if m_quiver:
-            ax.quiver(self.m_pos[:, 0], self.m_pos[:, 1], self.momenta[:, 0], self.momenta[:, 1], **m_quiver_kwargs)
+            ax.quiver(self.m_pos[::sparse, 0], self.m_pos[::sparse, 1], self.momenta[::sparse, 0],
+                      self.momenta[::sparse, 1], **m_quiver_kwargs)
 
     def intersect(self, ray):
         """
@@ -465,14 +468,18 @@ class TracerObject:
         if np.sqrt(sin_i2) > n2/n1:
             self.reflect(ray, point)
         else:
-            # Make a copy of the original ray
-            ray_reflected = Ray(point, ray.dir, ray.wavelength, ray.weight, ray.max_weight, ray.c)
             # Calculate the reflection and refraction coefficients
             cos_t = np.sqrt(1 - (n1/n2)**2*(1-cos_i**2))
             R_perp = ((n1*cos_i-n2*cos_t) / (n1*cos_i+n2*cos_t))**2
             R_para = ((n2*cos_i-n1*cos_t) / (n2*cos_i+n1*cos_t))**2
             R = (R_perp + R_para) / 2
             T = 1 - R
+            # Avoid creating rays at a very low weight
+            if R*ray.weight/ray.max_weight < 1e-5:
+                T, R = 1, 0
+            else:
+                # Make a copy of the original ray
+                ray_reflected = Ray(point, ray.dir, ray.wavelength, ray.weight, ray.max_weight, ray.c)
             # Calculate the original momentum of the refracted ray portion
             m_init = ray.dir * n1 / ray.wavelength
             # Refract the original ray
@@ -480,10 +487,11 @@ class TracerObject:
             ray.weight *= T
             self.momenta.append((m_init - ray.dir * n2 / ray.wavelength) * ray.weight)
             self.m_pos.append(point)
-            # Reflect the new ray
-            ray_reflected.weight *= R
-            self.reflect(ray_reflected, point)
-            return ray_reflected
+            if R:
+                # Reflect the new ray
+                ray_reflected.weight *= R
+                self.reflect(ray_reflected, point)
+                return ray_reflected
 
     def act_ray(self, ray, point):
         """
