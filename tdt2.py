@@ -91,6 +91,28 @@ class Scene:
             if np.all(np.invert(self.active)):
                 break
 
+    def plot(self, ax, ray_kwargs={}, m_quiver=False, m_quiver_kwargs={}, sparse=1):
+        """
+        Given a matplotlib axis object, plot all simulation elements onto it.
+
+        :param ax: a matplotlib axis
+        :param ray_kwargs: keyword arguments to pass to ax.plot when drawing rays
+        :param m_quiver: if True, the changes of momentum are plotted for all TracerObjects in the scene
+        :param m_quiver_kwargs: keyword arguments to pass to ax.quiver when drawing the momentum changes, most useful
+                                example being "scale", which changes the size of the arrows
+        :param sparse: integer, if specified to be n, only every nth ray will be drawn
+        :return: None
+        """
+        # Not every ray has existed throughout the entire run, hence the great list comprehension below, which
+        # constructs paths for all the rays.
+        for i, ray_hist in enumerate(
+                [[self.history[j][i] for j in range(len(self.history)) if i < len(self.history[j])] for i in
+                 range(len(self.history[-1]))]):
+            rh = np.array(ray_hist)
+            ax.plot(rh[:, 0], rh[:, 1], alpha=self.r_weights[i], **ray_kwargs)
+        for obj in self.objects:
+            obj.plot(ax)
+
 
 class RayFactoryLegacy:
     def __init__(self, rays):
@@ -183,11 +205,10 @@ class TracerObject:
 
 
 class Surface(TracerObject):
-    def __init__(self, origin, normal, radius=None, *args, **kwargs):
+    def __init__(self, origin, normal, *args, **kwargs):
         super().__init__(origin, *args, **kwargs)
         self._normal = normalize(np.array(normal))
         self.along = np.array([self._normal[1], -self._normal[0]])
-        self.radius = radius
 
     def normals(self, points):
         return np.full((len(points), 2), self._normal)
@@ -196,5 +217,17 @@ class Surface(TracerObject):
         dot = np.einsum("ij,j->i", dirs, self._normal)
         d = np.full(len(os), np.inf)
         d[dot != 0] = np.einsum("ij,j->i", (self.origin - os[dot != 0]), self._normal) / dot[dot != 0]
-        d[d<0] = np.inf
+        d[d < 0] = np.inf
         return d
+
+    def plot(self, ax):
+        """
+        Graph a representation of this object on the given matplotlib axis. In case of the Surface, the
+        small triangle represents the direction of the normal.
+
+        :param ax: a matplotlib axis object
+        :return: None
+        """
+        points = np.array([self.origin + self.along, self.origin + 0.1 * self.along, self.origin + 0.3*self._normal,
+                           self.origin - 0.1 * self.along, self.origin - self.along])
+        ax.plot(points[:, 0], points[:, 1], ":")
