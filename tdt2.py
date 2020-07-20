@@ -67,10 +67,29 @@ class Scene:
             self.r_origins = np.concatenate((self.r_origins, new_origins))
             self.active = np.concatenate((self.active, np.ones(len(new_dirs)).astype(bool)))
         self.history.append(self.r_origins.copy())
+        # Turn off rays that carry a very low fraction of the total power
+        self.active[self.r_weights/np.amax(self.r_weights) < 1e-5] = False
 
     def propagate(self, d):
         self.r_origins += self.r_dirs*d
         self.history.append(self.r_origins.copy())
+
+    def run(self, limit=100, margin=1e-10, announce_steps=False):
+        """
+        Run a full ray tracing simulation. Stops when all rays terminated or limit of steps reached.
+
+        :param limit: maximum number of steps
+        :param margin: distance to propagate rays after each collision
+        :param announce_steps: if True, print step info during each step
+        :return: None
+        """
+        for i in range(limit):
+            self.step()
+            self.r_origins += self.r_dirs * margin
+            if announce_steps:
+                print("Step", i)
+            if np.all(np.invert(self.active)):
+                break
 
 
 class RayFactoryLegacy:
