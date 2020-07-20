@@ -13,7 +13,7 @@ To contact me, try (in no particular order)
 
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 
-NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e-9 (wavelength is stored in nm)
+NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e9 (wavelength is stored in nm)
 """
 import numpy as np
 from matplotlib.patches import Circle, Wedge
@@ -347,7 +347,7 @@ class RayBundle:
         # Generate the rays
         self.rays = []
         spacing = 2*radius/n
-        photon_energy = 6.62607004e-25 * 299792458/wavelength*1e-9
+        photon_energy = 6.62607004e-25 * 299792458/wavelength
         for i in range(n):
             pos = self.origin + (i-(n-1)/2)*spacing*self.normal
             weight = intensity(pos) * spacing / photon_energy
@@ -369,7 +369,7 @@ class RandomRayBundle:
         self.wavelength = wavelength
         self.label = label
         # Calculate ray weights
-        photon_number = energy / (6.62607004e-25 * 299792458/wavelength*1e-9)
+        photon_number = energy / (6.62607004e-25 * 299792458/wavelength)
         weight = photon_number / n
         # Generate the rays
         pos = lambda: self.origin + self.normal * r_generator() * theta_generator()
