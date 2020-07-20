@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib.patches import Circle, Wedge
 
 
 def normalize(x):
@@ -9,6 +10,16 @@ def normalize(x):
     :return: np.array - normalised vector
     """
     return x / np.sqrt(x.dot(x))
+
+
+def normalize_array(x):
+    """
+    Given an array of vectors, return an array of vectors of unit length pointing in the same direction.
+
+    :param x: an array of vectors in np.array form
+    :return: np.array - an array of normalised vectors
+    """
+    return x / np.sqrt(np.einsum('...i,...i', x, x)).reshape(-1, 1)
 
 
 class Scene:
@@ -134,7 +145,7 @@ class TracerObject:
     def intersect_d(self, os, dirs):
         raise NotImplementedError
 
-    def normals(self, point):
+    def normals(self, points):
         raise NotImplementedError
 
     def reflect(self, ray, point):
@@ -231,3 +242,32 @@ class Surface(TracerObject):
         points = np.array([self.origin + self.along, self.origin + 0.1 * self.along, self.origin + 0.3*self._normal,
                            self.origin - 0.1 * self.along, self.origin - self.along])
         ax.plot(points[:, 0], points[:, 1], ":")
+
+
+class Sphere(TracerObject):
+    def __init__(self, origin, radius, *args, **kwargs):
+        super().__init__(origin, *args, **kwargs)
+        self.origin = origin
+        self.radius = radius
+
+    def normals(self, points):
+        return normalize_array(points - self.origin)
+
+    def intersect_d(self, os, dirs):
+        r = os - self.origin
+        a = -np.einsum("ij,ij->i", r, dirs)
+        b = a**2 - np.einsum('...i,...i', r, r) + self.radius**2
+        b[b < 0] = np.inf
+        b = np.sqrt(b)
+        negative = a - b
+        n_mask = negative > 0
+        positive = a + b
+        p_mask = positive > 0
+        d = np.full(len(os), np.inf)
+        d[p_mask] = positive[p_mask]
+        d[n_mask] = negative[n_mask]
+        return d
+
+    def plot(self, ax):
+        patch = Circle(self.origin, self.radius, alpha=0.2)
+        ax.add_artist(patch)
