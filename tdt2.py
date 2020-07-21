@@ -255,10 +255,10 @@ class Surface(TracerObject):
 
 
 class Sphere(TracerObject):
-    def __init__(self, origin, radius, *args, **kwargs):
+    def __init__(self, origin, radius, mask=None, *args, **kwargs):
         super().__init__(origin, *args, **kwargs)
-        self.origin = origin
         self.radius = radius
+        self.mask = mask if mask is None else np.array(mask)
 
     def normals(self, points):
         return normalize_array(points - self.origin)
@@ -274,12 +274,36 @@ class Sphere(TracerObject):
         positive = a + b
         p_mask = positive > 0
         d = np.full(len(os), np.inf)
-        d[p_mask] = positive[p_mask]
-        d[n_mask] = negative[n_mask]
+        if self.mask is None:
+            d[p_mask] = positive[p_mask]
+            d[n_mask] = negative[n_mask]
+        else:
+            # Mask the negative solutions
+            d[n_mask] = negative[n_mask]
+            r = os + np.einsum('ij,i->ij', dirs, d) - self.origin
+            angle = np.arctan2(r[:, 1], r[:, 0])
+            if self.mask[1] > self.mask[0]:
+                out = np.logical_or(angle < self.mask[0], angle > self.mask[1])
+            else:
+                out = np.logical_and(angle < self.mask[0], angle > self.mask[1])
+            d[out] = np.inf
+            # Now go for the positive solutions
+            # Conditions: no negative solution was found, and the positive solution is within the mask
+            d[p_mask & out] = positive[p_mask & out]
+            r = os + np.einsum('ij,i->ij', dirs, d) - self.origin
+            angle = np.arctan2(r[:, 1], r[:, 0])
+            if self.mask[1] > self.mask[0]:
+                out = np.logical_or(angle < self.mask[0], angle > self.mask[1])
+            else:
+                out = np.logical_and(angle < self.mask[0], angle > self.mask[1])
+            d[out] = np.inf
         return d
 
     def plot(self, ax):
-        patch = Circle(self.origin, self.radius, alpha=0.2)
+        if self.mask is None:
+            patch = Circle(self.origin, self.radius, alpha=0.2)
+        else:
+            patch = Wedge(self.origin, self.radius, *self.mask*180/np.pi, 0.1, alpha=0.2)
         ax.add_artist(patch)
 
 
