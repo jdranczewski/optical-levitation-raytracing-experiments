@@ -45,24 +45,26 @@ class Scene:
         d = np.full((len(self.objects), len(self.r_origins)), np.inf)
         for i, obj in enumerate(self.objects):
             d[i][self.active] = obj.intersect_d(self.r_origins[self.active], self.r_dirs[self.active])
+
         # For each ray, find the index of the object that it should collide with
         collisions = np.argmin(d, axis=0)
         no_collisions = np.count_nonzero(d == np.inf, axis=0) == len(self.objects)
         collisions[no_collisions] = -1
         self.active = no_collisions == False
+
         # Achieve points of intersection
         self.r_origins[self.active] += np.einsum('ij,i->ij', self.r_dirs[self.active],
                                                  np.amin(d.T[self.active], axis=1))
         new_dirs = np.array([])
         new_weights = np.array([])
         new_origins = np.array([])
+
         # Let objects do things to rays
         for i, obj in enumerate(self.objects):
             collided = collisions == i
             self.r_dirs[collided], self.r_weights[collided], nd, nw, no = \
                 obj.act_rays(self.r_origins[collided], self.r_dirs[collided],
                              self.r_weights[collided], self.r_wavelength)
-            # print("NEW", nd)
             if len(new_dirs) and len(nd):
                 new_dirs = np.concatenate((new_dirs, nd))
                 new_weights = np.concatenate((new_weights, nw))
@@ -71,6 +73,7 @@ class Scene:
                 new_dirs = nd
                 new_weights = nw
                 new_origins = no
+
         # Handle any new rays
         if len(new_dirs):
             self.r_dirs = np.concatenate((self.r_dirs, new_dirs))
@@ -78,6 +81,7 @@ class Scene:
             self.r_origins = np.concatenate((self.r_origins, new_origins))
             self.active = np.concatenate((self.active, np.ones(len(new_dirs)).astype(bool)))
         self.history.append(self.r_origins.copy())
+
         # Turn off rays that carry a very low fraction of the total power
         self.active[self.r_weights/np.amax(self.r_weights) < 1e-5] = False
 
@@ -137,10 +141,12 @@ class RayFactoryLegacy:
 
 
 class TracerObject:
-    def __init__(self, origin, n_out=1., n_in=1.):
+    def __init__(self, origin, n_out=1., n_in=1., reflective=False):
         self.origin = origin
         self.n_out = float(n_out)
         self.n_in = float(n_in)
+        if reflective:
+            self.act_rays = self.reflect
 
     def intersect_d(self, os, dirs):
         raise NotImplementedError
@@ -148,8 +154,12 @@ class TracerObject:
     def normals(self, points):
         raise NotImplementedError
 
-    def reflect(self, ray, point):
-        raise NotImplementedError
+    def reflect(self, os, dirs, weights, wavelength):
+        normals = self.normals(os)
+        cos_i = -np.einsum("ij,ij->i", dirs, normals)
+        d_refl = dirs + 2 * np.einsum("ij,i->ij", normals, cos_i)
+        empty = np.array([])
+        return d_refl, weights, empty, empty, empty
 
     def refract(self, ray, point):
         raise NotImplementedError
@@ -271,3 +281,38 @@ class Sphere(TracerObject):
     def plot(self, ax):
         patch = Circle(self.origin, self.radius, alpha=0.2)
         ax.add_artist(patch)
+
+
+class LineSegment(Surface):
+    def __init__(self, A, B, *args, **kwargs):
+        """
+        Create a refractive line segment
+
+        :param A: Start point of the segment
+        :param B: End point of the segment
+        :param args: Surface arguments
+        :param kwargs: Surface keyword arguments (note: radius is not supported by this object)
+        """
+        self.A = np.array(A)
+        self.B = np.array(B)
+        along = normalize(self.A - self.B)
+        normal = np.array([along[1], -along[0]])
+        super().__init__(np.mean([A, B], axis=0), normal, *args, **kwargs)
+
+    def intersect_d(self, os, dirs):
+        # Compute ray normals
+        rns = dirs[:, ::-1] * [1,-1]
+        mask = np.einsum("ij,ij->i", rns, self.A-os) * np.einsum("ij,ij->i", rns, self.B-os) < 0
+        d = np.full(len(os), np.inf)
+        d[mask] = super().intersect_d(os[mask], dirs[mask])
+        return d
+
+    def plot(self, ax):
+        """
+        Graph a representation of this object on the given matplotlib axis.
+
+        :param ax: a matplotlib axis object
+        :return: None
+        """
+        stack = np.stack((self.A-0.2*self._normal, self.A, self.B, self.B-0.2*self._normal))
+        ax.plot(stack[:, 0], stack[:, 1], ":")
