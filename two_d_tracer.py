@@ -115,7 +115,7 @@ def linspace(a, b, N):
 #################################
 class Scene:
     """
-    A container for a ray tracing sitaution.
+    A container for a ray tracing situation.
     """
     def __init__(self, rays, objects):
         """
