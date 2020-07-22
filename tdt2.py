@@ -74,9 +74,8 @@ class Scene:
     """
     A container for a ray tracing situation.
 
-    :parameter self.history: a series of snapshots of ray origins at each step.
-    :parameter self.objects: a list of all the TracerObjects in the scene
-
+    :property self.history: a series of snapshots of ray origins at each step.
+    :property self.objects: a list of all the TracerObjects in the scene
     """
 
     def __init__(self, rf, objects=[]):
@@ -184,6 +183,8 @@ class Scene:
         :param m_quiver_kwargs: keyword arguments to pass to ax.quiver when drawing the momentum changes, most useful
                                 example being "scale", which changes the size of the arrows
         :param sparse: integer, if specified to be n, only every nth ray will be drawn
+                       NOTE: sparse rendering may produce unexpected results (like disjoint rays) when
+                       ray-splitting occurs in the scene.
         :return: None
         """
         # Not every ray has existed throughout the entire run, hence the great list comprehension below, which
@@ -195,6 +196,19 @@ class Scene:
             ax.plot(rh[:, 0], rh[:, 1], alpha=self.r_weights[i], **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
+        if m_quiver:
+            ms = np.array([obj.momentum for obj in self.objects])
+            os = np.array([obj.origin for obj in self.objects])
+            ax.quiver(os[:, 0], os[:, 1], ms[:, 0], ms[:, 1], **m_quiver_kwargs)
+
+    @property
+    def momentum(self):
+        """
+        Total momentum acquired by objects in the scene.
+
+        :return: np.array, [X,Y]
+        """
+        return np.einsum("ij->j", np.array([obj.momentum for obj in self.objects]))
 
 
 class TracerObject:
