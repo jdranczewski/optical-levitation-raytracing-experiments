@@ -327,7 +327,6 @@ class TracerObject:
         n2 = np.full(len(os), self.n_in)
         n1[going_out] = self.n_in
         n2[going_out] = self.n_out
-        # print(going_out, self.n_in, n1, n2)
         cos_i[going_out] *= -1
 
         # Calculate a few more angles
@@ -340,7 +339,6 @@ class TracerObject:
         # Mark out rays that undergo total internal reflection
         tir = np.sqrt(sin_i2) > n2 / n1
         ntir = np.invert(tir)
-        # print("TIR", tir, ntir)
 
         # Calculate the reflection and refraction coefficients
         R_perp = ((n1 * cos_i - n2 * cos_t) / (n1 * cos_i + n2 * cos_t)) ** 2
@@ -397,6 +395,66 @@ class RayFactoryLegacy:
         self.dirs = np.array([ray.dir for ray in rays])
         self.weights = np.array([ray.weight for ray in rays]).astype(float)
         self.wavelength = rays[0].wavelength
+
+
+class BasicRF:
+    """
+    A basic RayFactory.
+    """
+    def __init__(self, x, y, dir, weight=1, wavelength=600):
+        """
+        Creates a basic RayFactory. The wavelength is shared between all rays, but the other parameters can be
+        supplied either as a single value or as a list of values. If a parameter is given as a single value (say x=2),
+        but another parameter is given as a list (like y=[0,1,3]), the single value is applied to all the rays,
+        giving self.origins = [[2,0], [2,1], [2,3]].
+
+        :param x: a single value (float) or a list of values for the ray origin x position
+        :param y: a single value (float) or a list of values for the ray origin y position
+        :param dir: a single vector or a list of vectors for ray directions. Normalised internally
+        :param weight: a single value (float) or a list of values for the ray weight
+        :param wavelength: a single float for the ray's wavelength
+        """
+        # Store the wavelength
+        self.wavelength = float(wavelength)
+
+        # Determine which parameters were given as lists, and their lengths
+        n = np.zeros(4)
+        for i, arg in enumerate((x, y, dir, weight)):
+            try:
+                n[i] = len(arg)
+                # Ensure dir is a list of lists, not just [X,Y] (which would return len=2)
+                if arg is dir:
+                    len(dir[0])
+            except TypeError:
+                n[i] = -1
+        # All list arguments should have the same length
+        mask = n != -1
+        if len(n[mask]) and not np.all(n[mask] == n[mask][0]):
+            raise Exception("All arguments given as lists must be of the same length")
+        N = np.amax(n).astype(int)
+
+        # Store the data, extending if necessary
+        if N == -1:
+            self.origins = np.column_stack((x,y))
+            self.dirs = normalize_array(np.array([dir]))
+            self.weights = np.array([weight])
+        else:
+            if n[0] == -1:
+                x = np.array([x]*N)
+            if n[1] == -1:
+                y = np.array([y]*N)
+            if n[2] == -1:
+                try:
+                    len(dir)
+                except TypeError:
+                    raise Exception("dir must be either a vector or a list of vectors")
+                dir = np.array([dir]*N)
+            if n[3] == -1:
+                weight = np.array([weight]*N)
+            self.origins = np.column_stack((x, y))
+            self.dirs = normalize_array(np.array(dir))
+            self.weights = np.array(weight).astype(float)
+
 
 
 ##################################
