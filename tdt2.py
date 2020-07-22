@@ -24,10 +24,10 @@ def normalize_array(x):
 
 class Scene:
     """
-    A container for a ray tracing sitaution.
+    A container for a ray tracing situation.
     """
 
-    def __init__(self, rf, objects=[], wavelength=600):
+    def __init__(self, rf, objects=[]):
         """
         :param rf: a RayFactory object
         :param objects: a list of TracerObject objects
@@ -36,7 +36,7 @@ class Scene:
         self.history = [self.r_origins.copy()]
         self.r_dirs = rf.dirs
         self.r_weights = rf.weights
-        self.r_wavelength = wavelength
+        self.r_wavelength = rf.wavelength
         self.active = np.ones(len(self.r_origins)).astype(bool)
         self.objects = objects
 
@@ -138,6 +138,7 @@ class RayFactoryLegacy:
         self.origins = np.array([ray.origin for ray in rays])
         self.dirs = np.array([ray.dir for ray in rays])
         self.weights = np.array([ray.weight for ray in rays]).astype(float)
+        self.wavelength = rays[0].wavelength
 
 
 class TracerObject:
@@ -145,6 +146,7 @@ class TracerObject:
         self.origin = origin
         self.n_out = float(n_out)
         self.n_in = float(n_in)
+        self.momentum = np.zeros(2)
         if reflective:
             self.act_rays = self.reflect
 
@@ -157,9 +159,14 @@ class TracerObject:
     def reflect(self, os, dirs, weights, wavelength):
         normals = self.normals(os)
         cos_i = -np.einsum("ij,ij->i", dirs, normals)
-        d_refl = dirs + 2 * np.einsum("ij,i->ij", normals, cos_i)
+        going_out = cos_i < 0
+        n1 = np.full(len(os), self.n_out)
+        n1[going_out] = self.n_in
+        change = 2 * np.einsum("ij,i->ij", normals, cos_i)
+        self.momentum -= np.einsum("ij,i->j", change, n1*weights) / wavelength
+        dirs += change
         empty = np.array([])
-        return d_refl, weights, empty, empty, empty
+        return change, weights, empty, empty, empty
 
     def refract(self, ray, point):
         raise NotImplementedError
@@ -182,6 +189,9 @@ class TracerObject:
         # Calculate a few more angles
         sin_i2 = 1 - cos_i**2
         cos_t = np.sqrt(1 - (n1 / n2) ** 2 * (1 - cos_i ** 2))
+
+        # Calculate the initial momentum of the rays
+        init_weights = n1*weights
 
         # Mark out rays that undergo total internal reflection
         tir = np.sqrt(sin_i2) > n2 / n1
@@ -210,19 +220,17 @@ class TracerObject:
         # Distribute ray weights
         weights[ntir] *= T[ntir]
 
+        # Calculate the change of momentum
+        n2[tir] = n1[tir]
+        self.momentum -= (np.einsum("ij,i->j", d_refr, n2*weights) +
+                          np.einsum("ij,i->j", new_d, n1[ntir]*new_weights) -
+                          np.einsum("ij,i->j", dirs, init_weights)) / wavelength
+
         # For now return just the refraction
         return d_refr, weights, new_d, new_weights, new_origins
 
     def plot(self, ax):
         pass
-
-    @property
-    def momentum(self):
-        raise NotImplementedError
-
-    @property
-    def angular_momentum(self, origin=None):
-        raise NotImplementedError
 
 
 class Surface(TracerObject):
