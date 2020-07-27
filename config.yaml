@@ -1,4 +1,4 @@
-# This is an exmaple YAML config file
+# This is an example YAML config file
 variables:
   steps: 5
   vars:
@@ -11,14 +11,15 @@ variables:
 params:
   mass: 1
   start: 0
-  end: 4
+  end: 10
   steps: *var1
   initial-conditions: [1., 0., 1., 1.5]
 
 forces:
-  - type: constant
+  - type: restoring
     params:
-      value: [10,10]
-  - type: central
+      origin: [1.5, 0]
+      coefficient: 3
+  - type: drag
     params:
-      coefficient: 10
+      coefficient: 1

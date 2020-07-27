@@ -38,7 +38,6 @@ def main():
                 for var in variables:
                     val = var["start"] + (var["end"]-var["start"])*vs/var_steps
                     text = text.replace("__{}__".format(var["name"]), str(val))
-                    print(var["name"])
                 config = yaml.safe_load(text)
             sim_params = config["params"]
             forces = []

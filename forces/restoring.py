@@ -1,5 +1,5 @@
 """
-Force for a central potential.
+Force for a restoring force, linear with displacement.
 
 Created during an Undergraduate Research Experience Programme placement at Imperial College London 2020
 by Jakub Dranczewski.
@@ -20,7 +20,6 @@ def factory(config, params):
     coeff = params["coefficient"]
 
     def central(state, t):
-        pos = state[:2] - origin
-        return -coeff * pos / (pos[0]**2 + pos[1]**2)**(3/2)
+        return -coeff * (state[:2] - origin)
 
     return central
