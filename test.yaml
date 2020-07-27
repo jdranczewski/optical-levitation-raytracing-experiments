@@ -25,3 +25,5 @@ forces:
     strength: *var1
 
 test: *var3
+
+range: !linspace 1,2,3

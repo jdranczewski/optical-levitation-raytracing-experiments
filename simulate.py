@@ -20,8 +20,17 @@ import matplotlib.pyplot as plt
 
 
 def derivatives(t, state, forces, mass):
+    print(t)
     acc = np.sum([force(state, t) for force in forces], axis=0)/mass
     return np.array([state[2], state[3], acc[0], acc[1]])
+
+
+def linspace_constructor(loader, node):
+    value = loader.construct_scalar(node).split(",")
+    return np.linspace(float(value[0]), float(value[1]), int(value[2]))
+
+
+yaml.SafeLoader.add_constructor("!linspace", linspace_constructor)
 
 
 def main():
