@@ -1,11 +1,18 @@
 # This is an exmaple YAML config file
 variables:
+  steps: 5
+  vars:
+    - name: var1
+      start: 10
+      end: 100
+      step: 1
+      value: &var1 __var1__
 
 params:
   mass: 1
   start: 0
   end: 4
-  steps: 10000
+  steps: *var1
   initial-conditions: [1., 0., 1., 1.5]
 
 forces:
