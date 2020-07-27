@@ -1,0 +1,27 @@
+# This is an exmaple YAML config file
+variables:
+  steps: 10
+  vars:
+    - &var1
+      start: 0
+      end: 1
+      step: 1
+    - &var2
+      start: 1
+      end: 3
+      step: 2
+    - &var3 __yes__
+
+params:
+  mass: 1e-6
+  steps: 1000
+  delta-t: 1e-3
+  initial-conditions: [0., 0., 1., 0.]
+
+forces:
+  - type: gravity
+    coeff: -9.81
+  - type: constant-force
+    strength: *var1
+
+test: *var3

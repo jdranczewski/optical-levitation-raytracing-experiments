@@ -1,0 +1,17 @@
+# This is an exmaple YAML config file
+variables:
+
+params:
+  mass: 1
+  start: 0
+  end: 4
+  steps: 10000
+  initial-conditions: [1., 0., 1., 1.5]
+
+forces:
+  - type: constant
+    params:
+      value: [10,10]
+  - type: central
+    params:
+      coefficient: 10
