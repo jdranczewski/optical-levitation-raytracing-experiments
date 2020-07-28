@@ -189,11 +189,12 @@ class Scene:
         """
         # Not every ray has existed throughout the entire run, hence the great list comprehension below, which
         # constructs paths for all the rays.
+        max_w = np.amax(self.r_weights)
         for i, ray_hist in enumerate(
                 [[self.history[j][i] for j in range(len(self.history)) if i < len(self.history[j])] for i in
                  range(0, len(self.history[-1]), sparse)]):
             rh = np.array(ray_hist)
-            ax.plot(rh[:, 0], rh[:, 1], alpha=self.r_weights[i], **ray_kwargs)
+            ax.plot(rh[:, 0], rh[:, 1], alpha=self.r_weights[i]/max_w, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
         if m_quiver:
@@ -454,6 +455,52 @@ class BasicRF:
             self.origins = np.column_stack((x, y))
             self.dirs = normalize_array(np.array(dir))
             self.weights = np.array(weight).astype(float)
+
+
+class ArbitraryRF:
+    def __init__(self, origin, dir, radius, n, wavelength, intensity):
+        """
+        Makes a RayFactory for a given, arbitrary intensity distribution.
+
+        :param origin: origin of the bundle
+        :param dir: direction of the bundle
+        :param radius: radius of the ray spawning
+        :param n: number of rays to spawn
+        :param wavelength: ray wavelength
+        :param intensity: the intensity function. Should be able to accept a np.array of form [[X,Y], [X,Y], ...]
+                          for positions.
+        """
+        spacing = 2 * radius / n
+        dir = normalize(np.array(dir))
+        normal = dir[::-1] * [1, -1]
+        photon_energy = 6.62607004e-25 * 299792458 / wavelength
+        self.origins = np.array(origin) + np.einsum("i,j", (np.arange(n) - (n - 1) / 2) * spacing, normal)
+        self.dirs = np.full((n,2), dir)
+        self.weights = intensity(self.origins) * spacing / photon_energy
+        self.wavelength = wavelength
+
+
+class GaussianRF(ArbitraryRF):
+    def __init__(self, power, width, origin, *args, **kwargs):
+        """
+        Makes a RayFactory for a Gaussian ray bundle.
+
+        :param power: total power of the beam
+        :param width: width of the beam, defined in the usual sense (from the beam's centre)
+        :param origin: origin of the bundle
+        :param dir: direction of the bundle
+        :param radius: radius of the ray spawning
+        :param n: number of rays to spawn
+        :param wavelength: ray wavelength
+        """
+        origin = np.array(origin)
+
+        def intensity(pos):
+            d = pos - origin
+            d2 = np.einsum('...i,...i', d, d)
+            return np.sqrt(2 / np.pi) * power / width * np.exp(-2 * d2 / width ** 2)
+
+        super().__init__(origin, *args, intensity=intensity, **kwargs)
 
 
 
