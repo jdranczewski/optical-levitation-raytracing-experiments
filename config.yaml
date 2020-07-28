@@ -24,7 +24,7 @@ forces:
       objects:
       - type: Sphere
         origin:
-          type: static
+          type: offset
           value: [0,0]
         params:
           radius: 10.e-6

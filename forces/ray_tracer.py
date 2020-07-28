@@ -24,9 +24,11 @@ def factory(config, params):
         for i, obj in enumerate(params["objects"]):
             if obj["origin"]["type"] == "offset":
                 origin = state[:2] + array(obj["origin"]["value"])
+                active = True
             else:
                 origin = array(obj["origin"]["value"])
-            objects.append(getattr(tdt2, obj["type"])(origin, **obj["params"]))
+                active = False
+            objects.append(getattr(tdt2, obj["type"])(origin, **obj["params"], active=active))
         # print(objects[0].origin)
         # print(t)
         scene = tdt2.Scene(rf, objects)

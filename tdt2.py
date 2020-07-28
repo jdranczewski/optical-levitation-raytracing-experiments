@@ -209,7 +209,11 @@ class Scene:
 
         :return: np.array, [X,Y]
         """
-        return np.einsum("ij->j", np.array([obj.momentum for obj in self.objects]))
+        active = [obj.momentum for obj in self.objects if obj.active]
+        if len(active):
+            return np.einsum("ij->j", np.array(active))
+        else:
+            return np.array([0, 0])
 
 
 class TracerObject:
@@ -219,7 +223,7 @@ class TracerObject:
     :parameter self.origin: the object's origin
     :parameter self.momentum: total momentum accumulated by the object
     """
-    def __init__(self, origin, n_out=1., n_in=1., reflective=False):
+    def __init__(self, origin, n_out=1., n_in=1., reflective=False, active=True):
         """
         Create a new TracerObject.
 
@@ -239,6 +243,7 @@ class TracerObject:
         self.n_out = float(n_out)
         self.n_in = float(n_in)
         self.momentum = np.zeros(2)
+        self.active = active
         # The object's ray-acting function is assigned to the outwards-facing, general "act_rays" function,
         # unless reflective is None, in which case act_rays is left as is.
         if reflective:
