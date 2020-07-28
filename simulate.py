@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 
 def derivatives(t, state, forces, mass):
-    print(t)
+    # print(t)
     acc = np.sum([force(state, t) for force in forces], axis=0)/mass
     return np.array([state[2], state[3], acc[0], acc[1]])
 
@@ -73,6 +73,7 @@ def main():
 
         times = np.linspace(sim_params["start"], sim_params["end"], sim_params["steps"])
         res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, 1), tfirst=True)
+        print(res)
         fig, ax = plt.subplots()
         ax.plot(res[:, 0], res[:, 1], "o-", ms=3)
         plt.show()
