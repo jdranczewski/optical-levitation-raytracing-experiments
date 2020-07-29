@@ -390,7 +390,19 @@ class TracerObject:
 #################################
 #     Various Ray Factories     #
 #################################
-class RayFactoryLegacy:
+class RayFactory:
+    def __init__(self):
+        pass
+
+    def __add__(self, other):
+        self.origins = np.concatenate((self.origins, other.origins))
+        self.dirs = np.concatenate((self.dirs, other.dirs))
+        self.weights = np.concatenate((self.weights, other.weights))
+        if self.wavelength != other.wavelength:
+            raise Exception("Only RayFactories with the same wavelength can be added!")
+        return self
+
+class RayFactoryLegacy(RayFactory):
     def __init__(self, rays):
         """
         Take in a set of Ray objects from two_d_tracer and make a RayFactory object.
@@ -403,7 +415,7 @@ class RayFactoryLegacy:
         self.wavelength = rays[0].wavelength
 
 
-class BasicRF:
+class BasicRF(RayFactory):
     """
     A basic RayFactory.
     """
@@ -462,7 +474,7 @@ class BasicRF:
             self.weights = np.array(weight).astype(float)
 
 
-class ArbitraryRF:
+class ArbitraryRF(RayFactory):
     def __init__(self, origin, dir, radius, n, wavelength, intensity):
         """
         Makes a RayFactory for a given, arbitrary intensity distribution.
@@ -507,6 +519,29 @@ class GaussianRF(ArbitraryRF):
 
         super().__init__(origin, *args, intensity=intensity, **kwargs)
 
+
+class AdaptiveGaussianRF(RayFactory):
+    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, emit_origin, emit_radius):
+        # Emit the rays from the emit_origin
+        spacing = 2 * emit_radius / n
+        _dir = normalize(np.array(dir))
+        normal = _dir[::-1] * [1, -1]
+        photon_energy = 6.62607004e-25 * 299792458 / wavelength
+        self.origins = np.array(emit_origin) + np.einsum("i,j", (np.arange(n) - (n - 1) / 2) * spacing, normal)
+        self.dirs = np.full((n, 2), _dir)
+
+        # Calculate the necessary ray weights
+        z = _dir.dot(np.array(emit_origin) - np.array(waist_origin))
+        r = np.einsum("ij,j->i", np.array(self.origins) - np.array(waist_origin), normal)
+        # print(z)
+
+        w = waist_radius * np.sqrt(1 + ((z*wavelength*1e-9)/(np.pi*waist_radius**2))**2)
+        # print(w)
+        intensities = np.sqrt(2 / np.pi) * power / w * np.exp(-2 * r**2 / w ** 2)
+        # print(intensities)
+        self.weights = intensities * spacing / photon_energy
+        # print(self.weights)
+        self.wavelength = wavelength
 
 
 ##################################

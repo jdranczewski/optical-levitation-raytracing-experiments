@@ -17,6 +17,7 @@ import numpy as np
 from scipy.integrate import odeint
 from importlib import import_module
 import matplotlib.pyplot as plt
+from forces.ray_tracer import make_scene
 
 
 def derivatives(t, state, forces, mass):
@@ -61,8 +62,42 @@ def main():
             times = np.linspace(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
             print(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
             res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, 1), tfirst=True)
-            ax.plot(res[:, 0]+vs*1e-6, res[:, 1], "o-", ms=3, label=vs)
+            ax.plot(res[:, 0], res[:, 1], "o-", ms=3, label=vs)
         ax.legend()
+
+        xs = []
+        ys = []
+        fx = []
+        fy = []
+        # for x in np.linspace(247e-6, 249.5e-6, 30):
+        #     print(x)
+        #     for y in np.linspace(-0.4e-6, 0.4e-6, 20):
+        #         forces = []
+        #         for force in config["forces"]:
+        #             m = import_module("forces." + force["type"])
+        #             forces.append(m.factory(config, force["params"]))
+        #             if force["type"] == "ray_tracer":
+        #                 rt_params = force["params"]
+        #         if not len(forces):
+        #             raise Exception("No forces were defined.")
+        #
+        #         acc = derivatives(0, np.array((x, y, 0, 0)), forces, sim_params["mass"])
+        #
+        #         xs.append(x)
+        #         ys.append(y)
+        #         fx.append(acc[2])
+        #         fy.append(acc[3])
+        ax.axis("equal")
+        for force in config["forces"]:
+            m = import_module("forces." + force["type"])
+            if force["type"] == "ray_tracer":
+                rt_params = force["params"]
+        scene = make_scene(np.array(sim_params["initial-conditions"]), rt_params)
+        # scene.run()
+        # scene.propagate(50e-6)
+        scene.plot(ax)
+        # ax.quiver(xs, ys, fx, fy, zorder=3)
+
         plt.show()
 
     else:
