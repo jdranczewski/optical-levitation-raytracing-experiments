@@ -69,34 +69,39 @@ def main():
         ys = []
         fx = []
         fy = []
-        # for x in np.linspace(247e-6, 249.5e-6, 30):
-        #     print(x)
-        #     for y in np.linspace(-0.4e-6, 0.4e-6, 20):
-        #         forces = []
-        #         for force in config["forces"]:
-        #             m = import_module("forces." + force["type"])
-        #             forces.append(m.factory(config, force["params"]))
-        #             if force["type"] == "ray_tracer":
-        #                 rt_params = force["params"]
-        #         if not len(forces):
-        #             raise Exception("No forces were defined.")
-        #
-        #         acc = derivatives(0, np.array((x, y, 0, 0)), forces, sim_params["mass"])
-        #
-        #         xs.append(x)
-        #         ys.append(y)
-        #         fx.append(acc[2])
-        #         fy.append(acc[3])
-        ax.axis("equal")
-        for force in config["forces"]:
-            m = import_module("forces." + force["type"])
-            if force["type"] == "ray_tracer":
-                rt_params = force["params"]
-        scene = make_scene(np.array(sim_params["initial-conditions"]), rt_params)
+        for x in np.linspace(300e-6, np.amax(res[:,0]), 30):
+            print(x)
+            for y in np.linspace(-3e-5, 2e-5, 20):
+                forces = []
+                for force in config["forces"]:
+                    m = import_module("forces." + force["type"])
+                    forces.append(m.factory(config, force["params"]))
+                    if force["type"] == "ray_tracer":
+                        rt_params = force["params"]
+                if not len(forces):
+                    raise Exception("No forces were defined.")
+
+                acc = derivatives(0, np.array((x, y, 0, 0)), forces, sim_params["mass"])
+
+                xs.append(x)
+                ys.append(y)
+                fx.append(acc[2])
+                fy.append(acc[3])
+        # ax.axis("equal")
+        # for force in config["forces"]:
+        #     m = import_module("forces." + force["type"])
+        #     if force["type"] == "ray_tracer":
+        #         rt_params = force["params"]
+        # scene = make_scene(np.array(sim_params["initial-conditions"]), rt_params)
         # scene.run()
         # scene.propagate(50e-6)
-        scene.plot(ax)
-        # ax.quiver(xs, ys, fx, fy, zorder=3)
+        # scene.plot(ax)
+        ax.quiver(xs, ys, fx, fy, zorder=3)
+
+        z = np.linspace(np.amin(res[:,0]), np.amax(res[:,0]), 100)
+        waist_radius = rt_params["ray-factory"]["params"]["waist_radius"]
+        w = waist_radius * np.sqrt(1 + ((z * 600 * 1e-9) / (np.pi * waist_radius ** 2)) ** 2)
+        ax.plot(z, w)
 
         plt.show()
 

@@ -194,7 +194,8 @@ class Scene:
                 [[self.history[j][i] for j in range(len(self.history)) if i < len(self.history[j])] for i in
                  range(0, len(self.history[-1]), sparse)]):
             rh = np.array(ray_hist)
-            ax.plot(rh[:, 0], rh[:, 1], alpha=self.r_weights[i]/max_w, **ray_kwargs)
+            # ax.plot(rh[:, 0], rh[:, 1], alpha=self.r_weights[i]/max_w, **ray_kwargs)
+            ax.plot(rh[:, 0], rh[:, 1], alpha=0.1, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
         if m_quiver:
@@ -489,6 +490,7 @@ class ArbitraryRF(RayFactory):
         """
         spacing = 2 * radius / n
         dir = normalize(np.array(dir))
+        n = int(n)
         normal = dir[::-1] * [1, -1]
         photon_energy = 6.62607004e-25 * 299792458 / wavelength
         self.origins = np.array(origin) + np.einsum("i,j", (np.arange(n) - (n - 1) / 2) * spacing, normal)
@@ -521,17 +523,18 @@ class GaussianRF(ArbitraryRF):
 
 
 class AdaptiveGaussianRF(RayFactory):
-    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, emit_origin, emit_radius):
+    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius):
         # Emit the rays from the emit_origin
+        n = int(n)
         spacing = 2 * emit_radius / n
         _dir = normalize(np.array(dir))
         normal = _dir[::-1] * [1, -1]
         photon_energy = 6.62607004e-25 * 299792458 / wavelength
-        self.origins = np.array(emit_origin) + np.einsum("i,j", (np.arange(n) - (n - 1) / 2) * spacing, normal)
+        self.origins = np.array(origin) + np.einsum("i,j", (np.arange(n) - (n - 1) / 2) * spacing, normal)
         self.dirs = np.full((n, 2), _dir)
 
         # Calculate the necessary ray weights
-        z = _dir.dot(np.array(emit_origin) - np.array(waist_origin))
+        z = _dir.dot(np.array(origin) - np.array(waist_origin))
         r = np.einsum("ij,j->i", np.array(self.origins) - np.array(waist_origin), normal)
         # print(z)
 
