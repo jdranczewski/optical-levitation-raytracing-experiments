@@ -18,7 +18,7 @@ params:
   start: 0
   end: 50000
   steps: *var2
-  initial-conditions: [80.e-6, -30.e-6, 0., 5.e-8]
+  initial-conditions: [-30.e-6, 80.e-6, 5.e-8, 0]
 
 forces:
   - type: drag
@@ -26,7 +26,7 @@ forces:
       coefficient: 0.001
   - type: constant
     params:
-      value: [-9.81e-11, 0]
+      value: [0, -9.81e-11]
   - type: ray_tracer
     params:
       objects:
@@ -48,10 +48,10 @@ forces:
         type: AdaptiveGaussianRF
         origin:
           type: offset
-          value: [-15.e-6,0]
+          value: [0, -15.e-6]
         params:
-          waist_origin: [-15.e-5, 0]
-          dir: [1,0]
+          waist_origin: [0, -15.e-5]
+          dir: [0,1]
           waist_radius: 5.e-6
           power: 400.e-3
           n: 100

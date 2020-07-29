@@ -69,9 +69,9 @@ def main():
         ys = []
         fx = []
         fy = []
-        for x in np.linspace(300e-6, np.amax(res[:,0]), 30):
+        for x in np.linspace(-3e-5, 2e-5, 20):
             print(x)
-            for y in np.linspace(-3e-5, 2e-5, 20):
+            for y in np.linspace(300e-6, np.amax(res[:,1]), 30):
                 forces = []
                 for force in config["forces"]:
                     m = import_module("forces." + force["type"])
@@ -98,10 +98,10 @@ def main():
         # scene.plot(ax)
         ax.quiver(xs, ys, fx, fy, zorder=3)
 
-        z = np.linspace(np.amin(res[:,0]), np.amax(res[:,0]), 100)
+        z = np.linspace(np.amin(res[:,1]), np.amax(res[:,1]), 100)
         waist_radius = rt_params["ray-factory"]["params"]["waist_radius"]
         w = waist_radius * np.sqrt(1 + ((z * 600 * 1e-9) / (np.pi * waist_radius ** 2)) ** 2)
-        ax.plot(z, w)
+        ax.plot(w, z)
 
         plt.show()
 
