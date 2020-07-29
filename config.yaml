@@ -14,11 +14,11 @@ variables:
       value: &var2 __var2__
 
 params:
-  mass: 1.e-11
+  mass: 1.3e-12
   start: 0
-  end: 50000
+  end: 500000
   steps: *var2
-  initial-conditions: [-30.e-6, 80.e-6, 5.e-8, 0]
+  initial-conditions: [-1.5e-6, 100.e-6, 0, 0]
 
 forces:
   - type: drag
@@ -26,7 +26,7 @@ forces:
       coefficient: 0.001
   - type: constant
     params:
-      value: [0, -9.81e-11]
+      value: [0, -1.28e-11]
   - type: ray_tracer
     params:
       objects:
@@ -42,25 +42,18 @@ forces:
           type: offset
           value: [0,0]
         params:
-          radius: 10.e-6
-          n_in: 1.5
+          radius: 5.e-6
+          n_in: 1.52
       ray-factory:
         type: AdaptiveGaussianRF
         origin:
           type: offset
           value: [0, -15.e-6]
         params:
-          waist_origin: [0, -15.e-5]
+          waist_origin: [0, 0]
           dir: [0,1]
-          waist_radius: 5.e-6
-          power: 400.e-3
+          waist_radius: 3.4e-6
+          power: 300.e-3
           n: 100
-          wavelength: 600
+          wavelength: 532
           emit_radius: 10.e-6
-#
-#          power: 400.e-3
-#          width: 30.e-6
-#          dir: [1,0]
-#          radius: 50.e-6
-#          n: 1000
-#          wavelength: 600

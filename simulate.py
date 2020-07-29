@@ -71,7 +71,7 @@ def main():
         fy = []
         for x in np.linspace(-3e-5, 2e-5, 20):
             print(x)
-            for y in np.linspace(300e-6, np.amax(res[:,1]), 30):
+            for y in np.linspace(300e-6, np.amax(res[:,1])*2, 30):
                 forces = []
                 for force in config["forces"]:
                     m = import_module("forces." + force["type"])
@@ -88,21 +88,23 @@ def main():
                 fx.append(acc[2])
                 fy.append(acc[3])
         # ax.axis("equal")
-        # for force in config["forces"]:
-        #     m = import_module("forces." + force["type"])
-        #     if force["type"] == "ray_tracer":
-        #         rt_params = force["params"]
+        for force in config["forces"]:
+            m = import_module("forces." + force["type"])
+            if force["type"] == "ray_tracer":
+                rt_params = force["params"]
         # scene = make_scene(np.array(sim_params["initial-conditions"]), rt_params)
         # scene.run()
         # scene.propagate(50e-6)
         # scene.plot(ax)
         ax.quiver(xs, ys, fx, fy, zorder=3)
 
-        z = np.linspace(np.amin(res[:,1]), np.amax(res[:,1]), 100)
+        z = np.linspace(0, np.amax(res[:,1]), 100)
         waist_radius = rt_params["ray-factory"]["params"]["waist_radius"]
         w = waist_radius * np.sqrt(1 + ((z * 600 * 1e-9) / (np.pi * waist_radius ** 2)) ** 2)
         ax.plot(w, z)
 
+        fig, ax = plt.subplots()
+        ax.plot(times, res[:,1])
         plt.show()
 
     else:
