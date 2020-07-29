@@ -19,25 +19,30 @@ import matplotlib.pyplot as plt
 
 def factory(config, params):
     def central(state, t):
-        rf = getattr(tdt2, params["ray-factory"]["type"])(**params["ray-factory"]["params"])
-        objects = []
-        for i, obj in enumerate(params["objects"]):
-            if obj["origin"]["type"] == "offset":
-                origin = state[:2] + array(obj["origin"]["value"])
-                active = True
-            else:
-                origin = array(obj["origin"]["value"])
-                active = False
-            objects.append(getattr(tdt2, obj["type"])(origin, **obj["params"], active=active))
-        # print(objects[0].origin)
-        # print(t)
-        scene = tdt2.Scene(rf, objects)
+        scene = make_scene(state, params)
         scene.run()
-        scene.propagate(5e-6)
-        # fig, ax = plt.subplots()
-        # scene.plot(ax, m_quiver=True)
-        # plt.show()
-        # print(scene.momentum)
+        # if t>14990:
+        #     scene.propagate(100e-6)
+        #     fig, ax = plt.subplots()
+        #     scene.plot(ax, m_quiver=True, ray_kwargs={"c": "tab:blue"})
+        #     plt.show()
+        # print(scene.momentum, state[:2])
         return scene.momentum*6.62607004e-34*1e9
 
     return central
+
+
+def make_scene(state, params):
+    rf = getattr(tdt2, params["ray-factory"]["type"])(**params["ray-factory"]["params"])
+    objects = []
+    for i, obj in enumerate(params["objects"]):
+        if obj["origin"]["type"] == "offset":
+            origin = state[:2] + array(obj["origin"]["value"])
+            active = True
+        else:
+            origin = array(obj["origin"]["value"])
+            active = False
+        objects.append(getattr(tdt2, obj["type"])(origin, **obj["params"], active=active))
+    # print(objects[0].origin)
+    # print(t)
+    return tdt2.Scene(rf, objects)

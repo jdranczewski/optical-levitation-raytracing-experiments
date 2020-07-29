@@ -41,11 +41,13 @@ def main():
         var_steps = config["variables"]["steps"]
         variables = config["variables"]["vars"]
 
+        fig, ax = plt.subplots()
         for vs in range(var_steps):
+            print("var_step")
             with open("config.yaml", 'r') as f:
                 text = f.read()
                 for var in variables:
-                    val = var["start"] + (var["end"]-var["start"])*vs/var_steps
+                    val = var["start"] + (var["end"]-var["start"])*vs/(var_steps-1)
                     text = text.replace("__{}__".format(var["name"]), str(val))
                 config = yaml.safe_load(text)
             sim_params = config["params"]
@@ -57,10 +59,11 @@ def main():
                 raise Exception("No forces were defined.")
 
             times = np.linspace(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
+            print(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
             res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, 1), tfirst=True)
-            fig, ax = plt.subplots()
-            ax.plot(res[:, 0], res[:, 1], "o-", ms=3)
-            plt.show()
+            ax.plot(res[:, 0]+vs*1e-6, res[:, 1], "o-", ms=3, label=vs)
+        ax.legend()
+        plt.show()
 
     else:
         sim_params = config["params"]

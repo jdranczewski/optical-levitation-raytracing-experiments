@@ -1,23 +1,11 @@
 # This is an example YAML config file
 variables:
-  steps: 5
-  vars:
-#    - name: var1
-#      start: 5000
-#      end: 20000
-#      step: 1
-#      value: &var1 __var1__
-    - name: var2
-      start: 1000
-      end: 1004
-      step: 1
-      value: &var2 __var2__
 
 params:
   mass: 1.e-11
   start: 0
   end: 25000
-  steps: *var2
+  steps: 10
   initial-conditions: [80.e-6, -30.e-6, 0., 0]
 
 forces:
@@ -30,13 +18,13 @@ forces:
   - type: ray_tracer
     params:
       objects:
-#      - type: Sphere
-#        origin:
-#          type: static
-#          value: [-50.e-6,0]
-#        params:
-#          radius: 50.e-6
-#          n_in: 1.3
+      - type: Sphere
+        origin:
+          type: static
+          value: [-50.e-6,0]
+        params:
+          radius: 50.e-6
+          n_in: 1.3
       - type: Sphere
         origin:
           type: offset
