@@ -23,6 +23,7 @@ from forces.ray_tracer import make_scene
 def derivatives(t, state, forces, mass):
     # print(t)
     acc = np.sum([force(state, t) for force in forces], axis=0)/mass
+    # print(state[:2], acc)
     return np.array([state[2], state[3], acc[0], acc[1]])
 
 
@@ -61,7 +62,7 @@ def main():
 
             times = np.linspace(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
             print(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
-            res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, 1), tfirst=True)
+            res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, sim_params["mass"]), tfirst=True)
             ax.plot(res[:, 0], res[:, 1], "o-", ms=3, label=vs)
         ax.legend()
 

@@ -16,14 +16,14 @@ variables:
 params:
   mass: 1.3e-12
   start: 0
-  end: 500000
+  end: 1
   steps: *var2
   initial-conditions: [-1.5e-6, 100.e-6, 0, 0]
 
 forces:
   - type: drag
     params:
-      coefficient: 0.001
+      coefficient: 1.e-10
   - type: constant
     params:
       value: [0, -1.28e-11]
