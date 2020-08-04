@@ -19,6 +19,10 @@ from importlib import import_module
 import matplotlib.pyplot as plt
 from forces.ray_tracer import make_scene
 
+eha = []
+ehb = []
+ehc = []
+ehd = []
 
 def derivatives(t, state, forces, mass):
     """
@@ -31,8 +35,13 @@ def derivatives(t, state, forces, mass):
     :return: d[x, y, v_x, v_y]/dt
     """
     # print(t)
-    acc = np.sum([force(state, t) for force in forces], axis=0)/mass
+    fs = [force(state, t) for force in forces]
+    acc = np.sum(fs, axis=0)/mass
     # print(state[:2], acc)
+    eha.append([state[0], state[1], fs[0][0]/mass, fs[0][1]/mass])
+    ehb.append([state[0], state[1], fs[1][0]/mass, fs[1][1]/mass])
+    ehc.append([state[0], state[1], fs[2][0]/mass, fs[2][1]/mass])
+    ehd.append([state[0], state[1], acc[0], acc[1]])
     return np.array([state[2], state[3], acc[0], acc[1]])
 
 
@@ -47,6 +56,7 @@ yaml.SafeLoader.add_constructor("!linspace", linspace_constructor)
 
 
 def main():
+    global eha, ehb, ehc, ehd
     """
     Runs the simulation.
 
@@ -108,15 +118,13 @@ def main():
         # Plot the result
         ax.plot(res[:, 0], res[:, 1], "o-", ms=3, label="{:.2e}".format(vs if val is None else val))
 
-    ax.legend()
-
     # xs = []
     # ys = []
     # fx = []
     # fy = []
-    # for x in np.linspace(-2.5e-5, 4.2e-5, 20):
+    # for x in np.linspace(-1.5e-6, .3e-6, 20):
     #     print(x)
-    #     for y in np.linspace(600e-6, 1.2*np.amax(res[:,1]), 30):
+    #     for y in np.linspace(100e-6, 1.2*np.amax(res[:,1]), 30):
     #         forces = []
     #         for force in config["forces"]:
     #             m = import_module("forces." + force["type"])
@@ -142,11 +150,20 @@ def main():
     # scene.propagate(50e-6)
     # scene.plot(ax)
     # ax.quiver(xs, ys, fx, fy, zorder=3)
+    eha = np.array(eha)
+    ehb = np.array(ehb)
+    ehc = np.array(ehc)
+    ehd = np.array(ehd)
+    ax.quiver(eha[:,0], eha[:,1], eha[:,2], eha[:,3], color="C1", scale=.5e4, label="Drag")
+    ax.quiver(ehb[:, 0], ehb[:, 1], ehb[:, 2], ehb[:, 3], color="C2", scale=.5e4, label="Gravity")
+    ax.quiver(ehc[:, 0], ehc[:, 1], ehc[:, 2], ehc[:, 3], color="C3", scale=.5e4, label="Optical")
+    ax.quiver(ehd[:, 0], ehd[:, 1], ehd[:, 2], ehd[:, 3], color="C4", scale=.5e4, label="Total", zorder=3)
 
     # z = np.linspace(0, np.amax(res[:,1]), 100)
     # waist_radius = rt_params["ray-factory"]["params"]["waist_radius"]
     # w = waist_radius * np.sqrt(1 + ((z * 600 * 1e-9) / (np.pi * waist_radius ** 2)) ** 2)
     # ax.plot(w, z)
+    ax.legend()
 
     fig, ax = plt.subplots()
     ax.plot(times, res[:,1])
