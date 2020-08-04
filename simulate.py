@@ -50,7 +50,7 @@ def main():
                 text = f.read()
                 for var in variables:
                     val = var["start"] + (var["end"]-var["start"])*vs/(var_steps-1)
-                    text = text.replace("__{}__".format(var["name"]), str(val))
+                    text = text.replace("__{}__".format(var["name"]), "{:e}".format(val))
                 config = yaml.safe_load(text)
             sim_params = config["params"]
             forces = []
@@ -63,7 +63,7 @@ def main():
             times = np.linspace(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
             print(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
             res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, sim_params["mass"]), tfirst=True)
-            ax.plot(res[:, 0], res[:, 1], "o-", ms=3, label=vs)
+            ax.plot(res[:, 0], res[:, 1], "o-", ms=3, label="{:.2e}".format(val))
         ax.legend()
 
         xs = []
