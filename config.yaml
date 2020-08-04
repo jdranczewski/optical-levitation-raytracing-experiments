@@ -1,24 +1,24 @@
 # This is an example YAML config file
 variables:
-  steps: 2
-  vars:
-#    - name: var1
-#      start: 5000
-#      end: 20000
+#  steps: 1
+#  vars:
+##    - name: var1
+##      start: 500
+##      end: 505
+##      step: 1
+##      value: &var1 __var1__
+#    - name: var2
+#      start: 5.e-6
+#      end: 10.e-6
 #      step: 1
-#      value: &var1 __var1__
-    - name: var2
-      start: 100
-      end: 1000
-      step: 1
-      value: &var2 __var2__
+#      value: &var2 __var2__
 
 params:
   mass: 1.3e-12
   start: 0
   end: 1
-  steps: *var2
-  initial-conditions: [-1.5e-6, 100.e-6, 0, 0]
+  steps: 1000
+  initial-conditions: [-1.5e-5, 300.e-6, 0, 0]
 
 forces:
   - type: drag
@@ -42,7 +42,7 @@ forces:
           type: offset
           value: [0,0]
         params:
-          radius: 5.e-6
+          radius: 10.e-6
           n_in: 1.52
       ray-factory:
         type: AdaptiveGaussianRF

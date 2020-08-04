@@ -22,7 +22,7 @@ def factory(config, params):
         scene = make_scene(state, params)
         scene.run()
         # if t>14990:
-        # scene.propagate(100e-6)
+        # scene.propagate(1e-6)
         # fig, ax = plt.subplots()
         # scene.plot(ax, m_quiver=True, ray_kwargs={"c": "tab:blue"})
         # plt.show()
