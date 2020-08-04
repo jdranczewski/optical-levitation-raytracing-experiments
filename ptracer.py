@@ -1,11 +1,10 @@
 """
-A second version of a 2D ray tracing library, this time implemented with numpy arrays containing ray information.
-This allows for very significant speedups, as numpy can process many rays in batches, with functions written in c.
+3D ray tracing library accounting for momentum changes
 
 Created during an Undergraduate Research Experience Programme placement at Imperial College London 2020
 by Jakub Dranczewski.
 
-There should be a Jupyter Notebook in this directory called "tdt2-experiments.ipynb" - this contains
+There should be a Jupyter Notebook in this directory called "ptracer-experiments.ipynb" - this contains
 examples of most things that can be done with this library.
 
 To contact me, try (in no particular order)
@@ -47,26 +46,6 @@ def normalize_array(x):
     return x / np.sqrt(np.einsum('...i,...i', x, x)).reshape(-1, 1)
 
 
-def linspace(a, b, N):
-    """
-    A version of np.linspace which tries to get even, and (most importantly) symmetric spacings between the
-    returned numbers. Breaks down when a and b are different orders of magnitude. Does well when they're the same,
-    unless the interval goes through 0, in which case the number distribution will be symmetric, but not exactly
-    uniform. The distribution may not also reach a and b exactly, but will exactly respect N.
-
-    :param a: Start of the interval
-    :param b: End of the interval
-    :param N: Number of points to return
-    :return: np.array
-    """
-    d = (b-a)/(N-1)/2
-    m = (b+a)/2
-    if N % 2:
-        return np.concatenate((np.arange(m, a-d, -2*d)[:0:-1], np.arange(m, b+d, 2*d)))
-    else:
-        return np.concatenate((np.arange(m-d, a-d, -2*d)[::-1], np.arange(m+d, b+d, 2*d)))
-
-
 #################################
 #     Main abstract classes     #
 #################################
@@ -83,10 +62,10 @@ class Scene:
         :param rf: a RayFactory object
         :param objects: a list of TracerObject objects
         """
-        self.r_origins = rf.origins
+        self.r_origins = rf.origins.copy()
         self.history = [self.r_origins.copy()]
-        self.r_dirs = rf.dirs
-        self.r_weights = rf.weights
+        self.r_dirs = rf.dirs.copy()
+        self.r_weights = rf.weights.copy()
         self.r_wavelength = rf.wavelength
         self.active = np.ones(len(self.r_origins)).astype(bool)
         self.objects = objects
@@ -194,14 +173,17 @@ class Scene:
                 [[self.history[j][i] for j in range(len(self.history)) if i < len(self.history[j])] for i in
                  range(0, len(self.history[-1]), sparse)]):
             rh = np.array(ray_hist)
-            # ax.plot(rh[:, 0], rh[:, 1], alpha=self.r_weights[i]/max_w, **ray_kwargs)
-            ax.plot(rh[:, 0], rh[:, 1], alpha=0.1, **ray_kwargs)
+            ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=self.r_weights[i]/max_w, **ray_kwargs)
+            # ax.plot(rh[:, 0], rh[:, 1], alpha=0.1, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
         if m_quiver:
             ms = np.array([obj.momentum for obj in self.objects])
             os = np.array([obj.origin for obj in self.objects])
-            ax.quiver(os[:, 0], os[:, 1], ms[:, 0], ms[:, 1], **m_quiver_kwargs)
+            print(os)
+            print(ms)
+            mmax = np.sqrt(np.amax(np.sum(ms**2, axis=0)))
+            ax.quiver(os[:, 0], os[:, 1], os[:, 2], ms[:, 0], ms[:, 1], ms[:, 2], length=1/mmax, **m_quiver_kwargs)
 
     @property
     def momentum(self):
@@ -214,7 +196,7 @@ class Scene:
         if len(active):
             return np.einsum("ij->j", np.array(active))
         else:
-            return np.array([0, 0])
+            return np.array([0, 0, 0])
 
 
 class TracerObject:
@@ -240,10 +222,10 @@ class TracerObject:
         :param n_in: Refractive index inside of the object
         :param reflective:
         """
-        self.origin = origin
+        self.origin = np.array(origin).astype(float)
         self.n_out = float(n_out)
         self.n_in = float(n_in)
-        self.momentum = np.zeros(2)
+        self.momentum = np.zeros(3)
         self.active = active
         # The object's ray-acting function is assigned to the outwards-facing, general "act_rays" function,
         # unless reflective is None, in which case act_rays is left as is.
@@ -306,6 +288,7 @@ class TracerObject:
 
         # Reflect the rays and store the momentum change
         change = 2 * np.einsum("ij,i->ij", normals, cos_i)
+        print(wavelength)
         self.momentum -= np.einsum("ij,i->j", change, n1*weights) / wavelength
         dirs += change
 
@@ -391,6 +374,14 @@ class TracerObject:
 #     Various Ray Factories     #
 #################################
 class RayFactory:
+    """
+    A container object for ray data. Exposes:
+
+    self.origins: ray origins, np.array, [[X,Y,Z], [X,Y,Z], ...]
+    self.dirs: ray directions (normalised), np.array, [[X,Y,Z], [X,Y,Z], ...]
+    self.weights: ray weights, np.array, [w, w, ...]
+    self.wavelength: ray wavelength, float
+    """
     def __init__(self):
         pass
 
@@ -403,32 +394,17 @@ class RayFactory:
         return self
 
 
-class RayFactoryLegacy(RayFactory):
-    def __init__(self, rays):
-        """
-        Take in a set of Ray objects from two_d_tracer and make a RayFactory object.
-
-        :param rays: a list of two_d_tracer.Ray objects
-        """
-        self.origins = np.array([ray.origin for ray in rays])
-        self.dirs = np.array([ray.dir for ray in rays])
-        self.weights = np.array([ray.weight for ray in rays]).astype(float)
-        self.wavelength = rays[0].wavelength
-
-
 class BasicRF(RayFactory):
-    """
-    A basic RayFactory.
-    """
-    def __init__(self, x, y, dir, weight=1, wavelength=600):
+    def __init__(self, x, y, z, dir, weight=1, wavelength=600):
         """
         Creates a basic RayFactory. The wavelength is shared between all rays, but the other parameters can be
-        supplied either as a single value or as a list of values. If a parameter is given as a single value (say x=2),
-        but another parameter is given as a list (like y=[0,1,3]), the single value is applied to all the rays,
-        giving self.origins = [[2,0], [2,1], [2,3]].
+        supplied either as a single value or as a list of values. If a parameter is given as a single value (say x=2,
+        z = 0), but another parameter is given as a list (like y=[0,1,3]), the single value is applied to all the rays,
+        giving self.origins = [[2,0,0], [2,1,0], [2,3,0]].
 
         :param x: a single value (float) or a list of values for the ray origin x position
         :param y: a single value (float) or a list of values for the ray origin y position
+        :param z: a single value (float) or a list of values for the ray origin z position
         :param dir: a single vector or a list of vectors for ray directions. Normalised internally
         :param weight: a single value (float) or a list of values for the ray weight
         :param wavelength: a single float for the ray's wavelength
@@ -437,11 +413,11 @@ class BasicRF(RayFactory):
         self.wavelength = float(wavelength)
 
         # Determine which parameters were given as lists, and their lengths
-        n = np.zeros(4)
-        for i, arg in enumerate((x, y, dir, weight)):
+        n = np.zeros(5)
+        for i, arg in enumerate((x, y, z, dir, weight)):
             try:
                 n[i] = len(arg)
-                # Ensure dir is a list of lists, not just [X,Y] (which would return len=2)
+                # Ensure dir is a list of lists, not just [X,Y,Z] (which would return len=3)
                 if arg is dir:
                     len(dir[0])
             except TypeError:
@@ -454,97 +430,27 @@ class BasicRF(RayFactory):
 
         # Store the data, extending if necessary
         if N == -1:
-            self.origins = np.column_stack((x,y))
+            self.origins = np.column_stack((x, y, z)).astype(float)
             self.dirs = normalize_array(np.array([dir]))
-            self.weights = np.array([weight])
+            self.weights = np.array([weight]).astype(float)
         else:
             if n[0] == -1:
                 x = np.array([x]*N)
             if n[1] == -1:
                 y = np.array([y]*N)
             if n[2] == -1:
+                z = np.array([z]*N)
+            if n[3] == -1:
                 try:
                     len(dir)
                 except TypeError:
                     raise Exception("dir must be either a vector or a list of vectors")
                 dir = np.array([dir]*N)
-            if n[3] == -1:
+            if n[4] == -1:
                 weight = np.array([weight]*N)
-            self.origins = np.column_stack((x, y))
-            self.dirs = normalize_array(np.array(dir))
+            self.origins = np.column_stack((x, y, z)).astype(float)
+            self.dirs = normalize_array(np.array(dir)).astype(float)
             self.weights = np.array(weight).astype(float)
-
-
-class ArbitraryRF(RayFactory):
-    def __init__(self, origin, dir, radius, n, wavelength, intensity):
-        """
-        Makes a RayFactory for a given, arbitrary intensity distribution.
-
-        :param origin: origin of the bundle
-        :param dir: direction of the bundle
-        :param radius: radius of the ray spawning
-        :param n: number of rays to spawn
-        :param wavelength: ray wavelength
-        :param intensity: the intensity function. Should be able to accept a np.array of form [[X,Y], [X,Y], ...]
-                          for positions.
-        """
-        spacing = 2 * radius / n
-        dir = normalize(np.array(dir))
-        n = int(n)
-        normal = dir[::-1] * [1, -1]
-        photon_energy = 6.62607004e-25 * 299792458 / wavelength
-        self.origins = np.array(origin) + np.einsum("i,j", (np.arange(n) - (n - 1) / 2) * spacing, normal)
-        self.dirs = np.full((n,2), dir)
-        self.weights = intensity(self.origins) * spacing / photon_energy
-        self.wavelength = wavelength
-
-
-class GaussianRF(ArbitraryRF):
-    def __init__(self, power, width, origin, *args, **kwargs):
-        """
-        Makes a RayFactory for a Gaussian ray bundle.
-
-        :param power: total power of the beam
-        :param width: width of the beam, defined in the usual sense (from the beam's centre)
-        :param origin: origin of the bundle
-        :param dir: direction of the bundle
-        :param radius: radius of the ray spawning
-        :param n: number of rays to spawn
-        :param wavelength: ray wavelength
-        """
-        origin = np.array(origin)
-
-        def intensity(pos):
-            d = pos - origin
-            d2 = np.einsum('...i,...i', d, d)
-            return np.sqrt(2 / np.pi**3) * power / width * np.exp(-2 * d2 / width ** 2)
-
-        super().__init__(origin, *args, intensity=intensity, **kwargs)
-
-
-class AdaptiveGaussianRF(RayFactory):
-    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius):
-        # Emit the rays from the emit_origin
-        n = int(n)
-        spacing = 2 * emit_radius / n
-        _dir = normalize(np.array(dir))
-        normal = _dir[::-1] * [1, -1]
-        photon_energy = 6.62607004e-25 * 299792458 / wavelength
-        self.origins = np.array(origin) + np.einsum("i,j", (np.arange(n) - (n - 1) / 2) * spacing, normal)
-        self.dirs = np.full((n, 2), _dir)
-
-        # Calculate the necessary ray weights
-        z = _dir.dot(np.array(origin) - np.array(waist_origin))
-        r = np.einsum("ij,j->i", np.array(self.origins) - np.array(waist_origin), normal)
-        # print(z)
-
-        w = waist_radius * np.sqrt(1 + ((z*wavelength*1e-9)/(np.pi*waist_radius**2))**2)
-        # print(w)
-        intensities = np.sqrt(2 / np.pi**3) * power / w * np.exp(-2 * r**2 / w ** 2)
-        # print(intensities)
-        self.weights = intensities * spacing / photon_energy
-        # print(self.weights)
-        self.wavelength = wavelength
 
 
 ##################################
@@ -564,10 +470,10 @@ class Surface(TracerObject):
         """
         super().__init__(origin, *args, **kwargs)
         self._normal = normalize(np.array(normal))
-        self.along = np.array([self._normal[1], -self._normal[0]])
+        self.along = np.array([self._normal[1], -self._normal[0]]).astype(float)
 
     def normals(self, points):
-        return np.full((len(points), 2), self._normal)
+        return np.full((len(points), 3), self._normal)
 
     def intersect_d(self, os, dirs):
         dot = np.einsum("ij,j->i", dirs, self._normal)
@@ -579,36 +485,23 @@ class Surface(TracerObject):
         return d
 
     def plot(self, ax):
-        """
-        Graph a representation of this object on the given matplotlib axis. In case of the Surface, the
-        small triangle represents the direction of the normal.
-
-        :param ax: a matplotlib axis object
-        :return: None
-        """
-        points = np.array([self.origin + self.along, self.origin + 0.1 * self.along, self.origin + 0.3*self._normal,
-                           self.origin - 0.1 * self.along, self.origin - self.along])
-        ax.plot(points[:, 0], points[:, 1], ":")
+        ax.quiver(*self.origin, *self._normal, color="tab:orange")
 
 
 class Sphere(TracerObject):
     """
     A Sphere.
     """
-    def __init__(self, origin, radius, mask=None, *args, **kwargs):
+    def __init__(self, origin, radius, *args, **kwargs):
         """
         Create a sphere or a section of it.
 
         :param origin: np.array, [X,Y]
         :param radius: float representing the sphere's radius
-        :param mask: a subset of the circle that interacts with rays expressed as angles in radians. Zero is along x
-                     axis, range is (-pi, pi]. If the angles provided (as a two-element list) make for a correct range,
-                     that range is chosen. If they are in the other direction, the opposite range is chosen.
         :param kwargs: TracerObject's kwargs
         """
         super().__init__(origin, *args, **kwargs)
         self.radius = radius
-        self.mask = mask if mask is None else np.array(mask)
 
     def normals(self, points):
         return normalize_array(points - self.origin)
@@ -625,70 +518,9 @@ class Sphere(TracerObject):
         positive = a + b
         p_mask = positive > 0
         d = np.full(len(os), np.inf)
-        if self.mask is None:
-            # Out of the two solutions, we care more about the smaller one (-), so let it override the + solution.
-            d[p_mask] = positive[p_mask]
-            d[n_mask] = negative[n_mask]
-        else:
-            # Mask the negative solutions
-            d[n_mask] = negative[n_mask]
-            r = os + np.einsum('ij,i->ij', dirs, d) - self.origin
-            angle = np.arctan2(r[:, 1], r[:, 0])
-            if self.mask[1] > self.mask[0]:
-                out = np.logical_or(angle < self.mask[0], angle > self.mask[1])
-            else:
-                out = np.logical_and(angle < self.mask[0], angle > self.mask[1])
-            d[out] = np.inf
-            # Now go for the positive solutions
-            # Conditions: no negative solution was found, and the positive solution is within the mask
-            d[p_mask & out] = positive[p_mask & out]
-            # The below is slightly inefficient, as we're testing some of the points we've already tested before
-            r = os + np.einsum('ij,i->ij', dirs, d) - self.origin
-            angle = np.arctan2(r[:, 1], r[:, 0])
-            if self.mask[1] > self.mask[0]:
-                out = np.logical_or(angle < self.mask[0], angle > self.mask[1])
-            else:
-                out = np.logical_and(angle < self.mask[0], angle > self.mask[1])
-            d[out] = np.inf
+        d[p_mask] = positive[p_mask]
+        d[n_mask] = negative[n_mask]
         return d
 
     def plot(self, ax):
-        if self.mask is None:
-            patch = Circle(self.origin, self.radius, alpha=0.2)
-        else:
-            patch = Wedge(self.origin, self.radius, *self.mask*180/np.pi, 0.1, alpha=0.2)
-        ax.add_artist(patch)
-
-
-class LineSegment(Surface):
-    def __init__(self, A, B, *args, **kwargs):
-        """
-        Create a refractive line segment
-
-        :param A: Start point of the segment
-        :param B: End point of the segment
-        :param kwargs: Surface keyword arguments
-        """
-        self.A = np.array(A)
-        self.B = np.array(B)
-        along = normalize(self.A - self.B)
-        normal = np.array([along[1], -along[0]])
-        super().__init__(np.mean([A, B], axis=0), normal, *args, **kwargs)
-
-    def intersect_d(self, os, dirs):
-        # Compute ray normals
-        rns = dirs[:, ::-1] * [1,-1]
-        mask = np.einsum("ij,ij->i", rns, self.A-os) * np.einsum("ij,ij->i", rns, self.B-os) < 0
-        d = np.full(len(os), np.inf)
-        d[mask] = super().intersect_d(os[mask], dirs[mask])
-        return d
-
-    def plot(self, ax):
-        """
-        Graph a representation of this object on the given matplotlib axis.
-
-        :param ax: a matplotlib axis object
-        :return: None
-        """
-        stack = np.stack((self.A-0.2*self._normal, self.A, self.B, self.B-0.2*self._normal))
-        ax.plot(stack[:, 0], stack[:, 1], ":")
+        pass
