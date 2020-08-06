@@ -16,7 +16,7 @@ variables:
 params:
   mass: &mass 1.3089969389957473e-12
   start: 0
-  end: 0.2
+  end: 1
   steps: 10000
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
 
@@ -26,7 +26,7 @@ forces:
       coefficient: 1.7058848108992579e-09
   - type: gravity
     params:
-      g: &g [0, 0, -9.81]
+      g: &g [0, 0, -9.8]
       mass: *mass
   - type: buoyancy_sphere
     params:
@@ -47,7 +47,7 @@ forces:
         type: AdaptiveGaussianRF
         origin:
           type: offset
-          value: [0, 0, -15.e-6]
+          value: [0, 0, -5.e-6]
         params:
           waist_origin: [0, 0, 0]
           dir: [0,0,1]

@@ -31,7 +31,12 @@ def derivatives(t, state, forces, mass):
     :return: d[x, y, v_x, v_y]/dt
     """
     # print(t)
-    acc = np.sum([force(state, t) for force in forces], axis=0)/mass
+    forces_v = [force(state, t) for force in forces]
+    acc = np.sum(forces_v, axis=0)/mass
+    # print("-" * 20)
+    # print(state[:3])
+    # for i in range(len(forces)):
+    #     print(forces[i].__name__, forces_v[i]/mass)
     return np.array([state[3], state[4], state[5], acc[0], acc[1], acc[2]])
 
 
@@ -133,10 +138,10 @@ def main():
     plt.tight_layout()
     plt.show()
 
-    # fig, ax = plt.subplots()
-    # for f in final:
-    #     ax.plot(f[:, 0], f[:, 2])
-    # plt.show()
+    fig, ax = plt.subplots()
+    for f in final:
+        ax.plot(f[:, 0], f[:, 2])
+    plt.show()
 
 
 if __name__ == "__main__":
