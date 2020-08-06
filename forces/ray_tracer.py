@@ -12,7 +12,7 @@ To contact me, try (in no particular order)
 
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 """
-import tdt2
+import ptracer
 from numpy import array
 import matplotlib.pyplot as plt
 
@@ -34,19 +34,19 @@ def factory(config, params):
 
 def make_scene(state, params):
     if params["ray-factory"]["origin"]["type"] == "offset":
-        origin = state[:2] + array(params["ray-factory"]["origin"]["value"])
+        origin = state[:3] + array(params["ray-factory"]["origin"]["value"])
     else:
         origin = params["ray-factory"]["origin"]["value"]
-    rf = getattr(tdt2, params["ray-factory"]["type"])(origin=origin, **params["ray-factory"]["params"])
+    rf = getattr(ptracer, params["ray-factory"]["type"])(origin=origin, **params["ray-factory"]["params"])
     objects = []
     for i, obj in enumerate(params["objects"]):
         if obj["origin"]["type"] == "offset":
-            origin = state[:2] + array(obj["origin"]["value"])
+            origin = state[:3] + array(obj["origin"]["value"])
             active = True
         else:
             origin = array(obj["origin"]["value"])
             active = False
-        objects.append(getattr(tdt2, obj["type"])(origin, **obj["params"], active=active))
+        objects.append(getattr(ptracer, obj["type"])(origin, **obj["params"], active=active))
     # print(objects[0].origin)
     # print(t)
-    return tdt2.Scene(rf, objects)
+    return ptracer.Scene(rf, objects)

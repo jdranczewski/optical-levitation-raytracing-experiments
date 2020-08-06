@@ -20,6 +20,6 @@ def factory(config, params):
     coeff = params["coefficient"]
 
     def central(state, t):
-        return -coeff * (state[:2] - origin)
+        return -coeff * (state[:3] - origin)
 
     return central

@@ -33,7 +33,7 @@ def derivatives(t, state, forces, mass):
     # print(t)
     acc = np.sum([force(state, t) for force in forces], axis=0)/mass
     # print(state[:2], acc)
-    return np.array([state[2], state[3], acc[0], acc[1]])
+    return np.array([state[3], state[4], state[5], acc[0], acc[1], acc[2]])
 
 
 # This is to allow constructing lists in yaml config files.
@@ -106,7 +106,7 @@ def main():
         res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, sim_params["mass"]), tfirst=True)
 
         # Plot the result
-        ax.plot(res[:, 0], res[:, 1], "o-", ms=3, label="{:.2e}".format(vs if val is None else val))
+        ax.plot(res[:, 0], res[:, 2], "o-", ms=3, label="{:.2e}".format(vs if val is None else val))
 
     ax.legend()
 
@@ -149,7 +149,7 @@ def main():
     # ax.plot(w, z)
 
     fig, ax = plt.subplots()
-    ax.plot(times, res[:,1])
+    ax.plot(times, res[:, 2])
     plt.show()
 
 

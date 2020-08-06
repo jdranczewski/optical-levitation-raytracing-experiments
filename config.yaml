@@ -16,9 +16,9 @@ variables:
 params:
   mass: 1.3089969389957473e-12
   start: 0
-  end: 2
+  end: 1
   steps: 10000
-  initial-conditions: [-1.5e-6, 100.e-6, 0, 0]
+  initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
 
 forces:
   - type: drag
@@ -26,14 +26,14 @@ forces:
       coefficient: 1.7058848108992579e-09
   - type: constant
     params:
-      value: [0, -1.2828170002158325e-11]
+      value: [0, 0, -1.2828170002158325e-11]
   - type: ray_tracer
     params:
       objects:
       - type: Sphere
         origin:
           type: offset
-          value: [0,0]
+          value: [0,0,0]
         params:
           radius: &radius 5.e-6
           n_in: 1.52
@@ -41,10 +41,10 @@ forces:
         type: AdaptiveGaussianRF
         origin:
           type: offset
-          value: [0, -15.e-6]
+          value: [0, 0, -15.e-6]
         params:
-          waist_origin: [0, 0]
-          dir: [0,1]
+          waist_origin: [0, 0, 0]
+          dir: [0,0,1]
           waist_radius: 3.39728e-6
           power: 300.e-3
           n: 100

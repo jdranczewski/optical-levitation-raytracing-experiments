@@ -20,7 +20,7 @@ def factory(config, params):
     coeff = params["coefficient"]
 
     def central(state, t):
-        pos = state[:2] - origin
-        return -coeff * pos / (pos[0]**2 + pos[1]**2)**(3/2)
+        pos = state[:3] - origin
+        return -coeff * pos / (pos[0]**2 + pos[1]**2 + pos[2]**2)**(3/2)
 
     return central

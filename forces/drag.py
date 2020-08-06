@@ -18,6 +18,6 @@ def factory(config, params):
     coeff = params["coefficient"]
 
     def drag(state, t):
-        return -coeff * state[2:]
+        return -coeff * state[3:]
 
     return drag
