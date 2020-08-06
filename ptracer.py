@@ -183,7 +183,7 @@ class Scene:
             print(os)
             print(ms)
             mmax = np.sqrt(np.amax(np.sum(ms**2, axis=0)))
-            ax.quiver(os[:, 0], os[:, 1], os[:, 2], ms[:, 0], ms[:, 1], ms[:, 2], length=1/mmax, **m_quiver_kwargs)
+            ax.quiver(os[:, 0], os[:, 1], os[:, 2], ms[:, 0], ms[:, 1], ms[:, 2], length=1e-6/mmax, **m_quiver_kwargs)
 
     @property
     def momentum(self):

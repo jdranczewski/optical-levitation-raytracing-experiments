@@ -32,7 +32,6 @@ def derivatives(t, state, forces, mass):
     """
     # print(t)
     acc = np.sum([force(state, t) for force in forces], axis=0)/mass
-    # print(state[:2], acc)
     return np.array([state[3], state[4], state[5], acc[0], acc[1], acc[2]])
 
 
@@ -47,6 +46,7 @@ yaml.SafeLoader.add_constructor("!linspace", linspace_constructor)
 
 
 def main():
+    global derivatives
     """
     Runs the simulation.
 
@@ -64,7 +64,7 @@ def main():
         var_steps = 1
         variables = []
 
-    fig, ax = plt.subplots()
+    final = []
 
     # Go through variable steps
     for vs in range(var_steps):
@@ -91,12 +91,13 @@ def main():
 
         # Construct a list of force functions
         forces = []
-        for force in config["forces"]:
-            # Import a force by its name as specified in the config
-            m = import_module("forces." + force["type"])
-            forces.append(m.factory(config, force["params"]))
-        if not len(forces):
-            raise Exception("No forces were defined.")
+        if config["forces"] is None:
+            derivatives = lambda t, state, forces, mass: np.array([state[3], state[4], state[5], 0, 0, 0])
+        else:
+            for force in config["forces"]:
+                # Import a force by its name as specified in the config
+                m = import_module("forces." + force["type"])
+                forces.append(m.factory(config, force["params"]))
 
         # Define the time axis
         times = np.linspace(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
@@ -106,50 +107,29 @@ def main():
         res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, sim_params["mass"]), tfirst=True)
 
         # Plot the result
-        ax.plot(res[:, 0], res[:, 2], "o-", ms=3, label="{:.2e}".format(vs if val is None else val))
+        final.append(np.column_stack((res, times)))
 
-    ax.legend()
+    # print(final)
+    fig = plt.figure()
+    ax = [fig.add_subplot(221, projection='3d')] + [fig.add_subplot(2,2,i) for i in range(2,5)]
+    for f in final:
+        ax[0].plot(f[:, 0], f[:, 1], f[:, 2])
+        ax[1].plot(f[:, 6], f[:, 2])
+        ax[2].plot(f[:, 6], f[:, 0])
+        ax[3].plot(f[:, 6], f[:, 1])
+    l = ("x", "y", "z")
+    for i, axis in enumerate(ax[1:]):
+        axis.set_xlabel("Time (s)")
+        axis.set_ylabel("{} (m)".format(l[i]))
 
-    # xs = []
-    # ys = []
-    # fx = []
-    # fy = []
-    # for x in np.linspace(-2.5e-5, 4.2e-5, 20):
-    #     print(x)
-    #     for y in np.linspace(600e-6, 1.2*np.amax(res[:,1]), 30):
-    #         forces = []
-    #         for force in config["forces"]:
-    #             m = import_module("forces." + force["type"])
-    #             forces.append(m.factory(config, force["params"]))
-    #             if force["type"] == "ray_tracer":
-    #                 rt_params = force["params"]
-    #         if not len(forces):
-    #             raise Exception("No forces were defined.")
-    #
-    #         acc = derivatives(0, np.array((x, y, 0, 0)), forces, sim_params["mass"])
-    #
-    #         xs.append(x)
-    #         ys.append(y)
-    #         fx.append(acc[2])
-    #         fy.append(acc[3])
-    # ax.axis("equal")
-    # for force in config["forces"]:
-    #     m = import_module("forces." + force["type"])
-    #     if force["type"] == "ray_tracer":
-    #         rt_params = force["params"]
-    # scene = make_scene(np.array(sim_params["initial-conditions"]), rt_params)
-    # scene.run()
-    # scene.propagate(50e-6)
-    # scene.plot(ax)
-    # ax.quiver(xs, ys, fx, fy, zorder=3)
+    # z = np.linspace(0,-0.006,10)
+    # w = 3.39728e-6 * np.sqrt(1 + ((z * 532 * 1e-9) / (np.pi * 3.39728e-6 ** 2)) ** 2)
+    # ax[0].plot(w, np.zeros_like(w), z)
+    # ax[0].plot(-w, np.zeros_like(w), z)
+    # ax[0].plot(np.zeros_like(w), w, z)
+    # ax[0].plot(np.zeros_like(w), -w, z)
 
-    # z = np.linspace(0, np.amax(res[:,1]), 100)
-    # waist_radius = rt_params["ray-factory"]["params"]["waist_radius"]
-    # w = waist_radius * np.sqrt(1 + ((z * 600 * 1e-9) / (np.pi * waist_radius ** 2)) ** 2)
-    # ax.plot(w, z)
-
-    fig, ax = plt.subplots()
-    ax.plot(times, res[:, 2])
+    plt.tight_layout()
     plt.show()
 
 

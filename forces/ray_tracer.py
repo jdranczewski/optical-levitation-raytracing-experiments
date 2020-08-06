@@ -21,11 +21,12 @@ def factory(config, params):
     def central(state, t):
         scene = make_scene(state, params)
         scene.run()
-        # if t>14990:
-        # scene.propagate(1e-6)
-        # fig, ax = plt.subplots()
-        # scene.plot(ax, m_quiver=True, ray_kwargs={"c": "tab:blue"})
-        # plt.show()
+        # if t>0.02:
+        #     scene.propagate(1e-6)
+        #     fig = plt.figure()
+        #     ax = fig.add_subplot(111, projection='3d')
+        #     scene.plot(ax, m_quiver=True, ray_kwargs={"c": "tab:blue"})
+        #     plt.show()
         # print(scene.momentum, state[:2])
         return scene.momentum*6.62607004e-34*1e9
 

@@ -1,24 +1,24 @@
 # This is an example YAML config file
 variables:
-#  steps: 1
-#  vars:
+  steps: 3
+  vars:
 ##    - name: var1
 ##      start: 500
 ##      end: 505
 ##      step: 1
 ##      value: &var1 __var1__
-#    - name: var2
-#      start: 5.e-6
-#      end: 10.e-6
-#      step: 1
-#      value: &var2 __var2__
+    - name: var2
+      start: 0
+      end: 10.e-6
+      step: 1
+      value: &var2 __var2__
 
 params:
   mass: 1.3089969389957473e-12
   start: 0
-  end: 1
+  end: 0.2
   steps: 10000
-  initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
+  initial-conditions: [-1.5e-6, 0, 0, 0, *var2, 0]
 
 forces:
   - type: drag
