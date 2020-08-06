@@ -456,7 +456,7 @@ class BasicRF(RayFactory):
 class AdaptiveGaussianRF(RayFactory):
     def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius):
         # New way to emit rays, needed for 3D
-        N = n
+        N = int(n)
         R = emit_radius
 
         n = round(.5 * (1 + np.sqrt(1 + 4 * (N - 1) / np.pi)))
@@ -467,8 +467,10 @@ class AdaptiveGaussianRF(RayFactory):
         areas = np.zeros(N)
         areas[0] = np.pi * (d/2)**2
         start = 1
+        offset = 0
         for i in range(1, n):
-            n_ring = round(2 * np.pi * i * d / d_ring)
+            n_ring = round((2 * np.pi * i * d + offset) / d_ring)
+            offset = (2 * np.pi * i * d + offset) - n_ring * d_ring
             t_ring = np.arange(0, 2 * np.pi, 2 * np.pi / n_ring)
             os[start:start+n_ring] = np.array((i*d*np.cos(t_ring), i*d*np.sin(t_ring), np.zeros(n_ring))).T
             areas[start:start + n_ring] = 2*i*np.pi*d**2 / n_ring

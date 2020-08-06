@@ -80,6 +80,7 @@ def main():
                         val = var["start"] + (var["end"]-var["start"])*vs/(var_steps-1)
                     else:
                         val = var["start"]
+                    print(val)
                     # ... and include that value in the variable'd definition in the yaml file
                     text = text.replace("__{}__".format(var["name"]), "{:e}".format(val))
                 # Reload the config, with the variable's value in place
@@ -131,6 +132,11 @@ def main():
 
     plt.tight_layout()
     plt.show()
+
+    # fig, ax = plt.subplots()
+    # for f in final:
+    #     ax.plot(f[:, 0], f[:, 2])
+    # plt.show()
 
 
 if __name__ == "__main__":

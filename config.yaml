@@ -1,6 +1,6 @@
 # This is an example YAML config file
 variables:
-  steps: 3
+  steps: 4
   vars:
 ##    - name: var1
 ##      start: 500
@@ -8,35 +8,41 @@ variables:
 ##      step: 1
 ##      value: &var1 __var1__
     - name: var2
-      start: 0
-      end: 10.e-6
+      start: 100
+      end: 1000
       step: 1
       value: &var2 __var2__
 
 params:
-  mass: 1.3089969389957473e-12
+  mass: &mass 1.3089969389957473e-12
   start: 0
   end: 0.2
   steps: 10000
-  initial-conditions: [-1.5e-6, 0, 0, 0, *var2, 0]
+  initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
 
 forces:
   - type: drag
     params:
       coefficient: 1.7058848108992579e-09
-  - type: constant
+  - type: gravity
     params:
-      value: [0, 0, -1.2828170002158325e-11]
+      g: &g [0, 0, -9.81]
+      mass: *mass
+  - type: buoyancy_sphere
+    params:
+      g: *g
+      density: 1.17845
+      radius: &radius 5.e-6
   - type: ray_tracer
     params:
       objects:
-      - type: Sphere
-        origin:
-          type: offset
-          value: [0,0,0]
-        params:
-          radius: &radius 5.e-6
-          n_in: 1.52
+        - type: Sphere
+          origin:
+            type: offset
+            value: [0,0,0]
+          params:
+            radius: *radius
+            n_in: 1.52
       ray-factory:
         type: AdaptiveGaussianRF
         origin:
@@ -47,6 +53,6 @@ forces:
           dir: [0,0,1]
           waist_radius: 3.39728e-6
           power: 300.e-3
-          n: 100
+          n: *var2
           wavelength: 532
           emit_radius: *radius

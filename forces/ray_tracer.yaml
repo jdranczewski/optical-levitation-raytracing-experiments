@@ -1,11 +1,26 @@
-# keys
+# This is an example
 objects:
   - type: TracerObject
+    origin:
+      # offset makes the object anchored to the simulation's 'state' positions, with some offset
+      # static positions the object in an absolute fashion, the force on this object is also not counted
+      type: offset/static
+      value: [0,0,0]
     params:
-      n_in: 1.5
+      # Any keyword arguments this TracerObject takes (NOT origin, that's handled above)
+      n_in: 1.52
 ray-factory:
-  type: BasicRF
+  type: AdaptiveGaussianRF
+  origin:
+    # Origin behaviour like described above
+    type: offset
+    value: [0, 0, -15.e-6]
   params:
-    x: 0
-    y: !linspace -1.3, 1.3, 100
-    dir: [1,0]
+    # Any keyword arguments this RayFactory takes (NOT origin, that's handled above)
+    waist_origin: [0, 0, 0]
+    dir: [0,0,1]
+    waist_radius: 3.39728e-6
+    power: 300.e-3
+    n: 100
+    wavelength: 532
+    emit_radius: 5.e-6

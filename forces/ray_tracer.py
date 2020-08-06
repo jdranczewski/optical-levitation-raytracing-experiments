@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 
 def factory(config, params):
-    def central(state, t):
+    def ray_tracer_force(state, t):
         scene = make_scene(state, params)
         scene.run()
         # if t>0.02:
@@ -30,7 +30,7 @@ def factory(config, params):
         # print(scene.momentum, state[:2])
         return scene.momentum*6.62607004e-34*1e9
 
-    return central
+    return ray_tracer_force
 
 
 def make_scene(state, params):
