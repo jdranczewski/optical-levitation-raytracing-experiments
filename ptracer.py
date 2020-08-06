@@ -453,6 +453,45 @@ class BasicRF(RayFactory):
             self.weights = np.array(weight).astype(float)
 
 
+class AdaptiveGaussianRF(RayFactory):
+    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius):
+        # New way to emit rays, needed for 3D
+        N = n
+        R = emit_radius
+
+        n = round(.5 * (1 + np.sqrt(1 + 4 * (N - 1) / np.pi)))
+        d = R / (n - .5)
+        d_ring = np.pi * d * n * (n - 1) / (N - 1)
+
+        os = np.zeros((N, 3))
+        areas = np.zeros(N)
+        areas[0] = np.pi * (d/2)**2
+        start = 1
+        for i in range(1, n):
+            n_ring = round(2 * np.pi * i * d / d_ring)
+            t_ring = np.arange(0, 2 * np.pi, 2 * np.pi / n_ring)
+            os[start:start+n_ring] = np.array((i*d*np.cos(t_ring), i*d*np.sin(t_ring), np.zeros(n_ring))).T
+            areas[start:start + n_ring] = 2*i*np.pi*d**2 / n_ring
+            start += n_ring
+        self.origins = os + origin
+
+        _dir = normalize(np.array(dir))
+        self.dirs = np.full((N, 3), _dir)
+
+        # Calculate the necessary ray weights
+        z = _dir.dot(np.array(origin) - np.array(waist_origin))
+        rv = self.origins - np.array(waist_origin)
+        rvr = rv - np.einsum("ij,j->ij", rv, _dir)
+        r = np.sqrt(np.einsum('...i,...i', rvr, rvr))
+
+        photon_energy = 6.62607004e-25 * 299792458 / wavelength
+        w = waist_radius * np.sqrt(1 + ((z*wavelength*1e-9)/(np.pi*waist_radius**2))**2)
+        intensities = 2*power / (np.pi*w**2) * np.exp(-2 * r**2 / w ** 2)
+        self.weights = intensities / photon_energy * areas
+
+        self.wavelength = wavelength
+
+
 ##################################
 #     Specific TracerObjects     #
 ##################################
@@ -523,4 +562,4 @@ class Sphere(TracerObject):
         return d
 
     def plot(self, ax):
-        pass
+        ax.plot([self.origin[0]], [self.origin[1]], [self.origin[2]], "o", ms=10, alpha=0.2)
