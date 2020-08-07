@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 from forces.ray_tracer import make_scene
 from tqdm import tqdm
 from time import sleep
+import os
+from datetime import datetime
 
 
 def derivatives(t, state, forces, mass, pbar):
@@ -131,8 +133,17 @@ def main():
     tqdm.write("Making the output...")
     out_params = config["output"]
     labels = ("x", "y", "z", "v_x", "v_y", "v_z", "time")
+    savepath = ""
+    if out_params["save-as"] is not None:
+        now = datetime.now()
+        name = now.strftime(out_params["save-as"])
+        savepath = os.path.join("output", name)
+        os.mkdir(savepath)
+        with open("config.yaml", 'r') as f:
+            with open(os.path.join(savepath, "config.yaml"), 'w') as fw:
+                fw.write(f.read())
 
-    if out_params["show-main-graph"]:
+    if out_params["show-main-graph"] or len(savepath):
         fig = plt.figure()
         ax = [fig.add_subplot(221, projection='3d')] + [fig.add_subplot(2,2,i) for i in range(2,5)]
         for f in final:
@@ -144,6 +155,11 @@ def main():
             axis.set_xlabel("Time (s)")
             axis.set_ylabel("{} (m)".format(labels[i]))
         fig.tight_layout()
+        print(savepath)
+        if len(savepath):
+            fig.savefig(os.path.join(savepath, "main.png"), bbox_inches="tight")
+        if not out_params["show-main-graph"]:
+            plt.close(fig)
 
     if out_params["graphs"] is not None:
         var_names = [var["name"] for var in variables]
@@ -169,6 +185,10 @@ def main():
             ax.grid()
             ax.legend()
 
+            if len(savepath) and graph["name"] is not None:
+                fig.savefig(os.path.join(savepath, graph["name"]+".png"), bbox_inches="tight")
+            if not graph["show"]:
+                plt.close(fig)
     plt.show()
 
 

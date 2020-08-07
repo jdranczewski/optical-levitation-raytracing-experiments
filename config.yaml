@@ -21,11 +21,12 @@ params:
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
 
 output:
-  show-main-graph: False
-  save-as: test
+  show-main-graph: True
+  # You can use tags from https://strftime.org/ to include current date elements in this name
+  save-as: "%Y-%m-%d-%H-%M-%S-test"
   graphs:
-    - show: False
-      name:
+    - show: True
+      name: Atest
       x:
         column: 6
         label: test
@@ -36,7 +37,7 @@ output:
         label:
         scale: 1.e-6
         unit: $\mu m$
-    - show: False
+    - show: True
       name:
       x:
         column: 6
