@@ -62,6 +62,7 @@ def main():
 
     :return: None
     """
+    tqdm.write("Loading configuration...")
     # Load the config file
     with open("config.yaml", 'r') as f:
         config = yaml.safe_load(f)
@@ -76,21 +77,23 @@ def main():
 
     final = []
 
+    tqdm.write("Running the simulation...")
+    var_values = [[]] * len(variables)
     # Go through variable steps
     for vs in range(var_steps):
-        tqdm.write("var_step")
         # If variables have been defined, calculate their current value and push that into the config
         if len(variables):
             with open("config.yaml", 'r') as f:
                 # Read the config file
                 text = f.read()
                 # For each variable calculate the current value...
-                for var in variables:
+                for i, var in enumerate(variables):
                     if var_steps > 1:
                         val = var["start"] + (var["end"]-var["start"])*vs/(var_steps-1)
                     else:
                         val = var["start"]
-                    tqdm.write(str(val))
+                    var_values[i].append(val)
+                    # tqdm.write(str(val))
                     # ... and include that value in the variable'd definition in the yaml file
                     text = text.replace("__{}__".format(var["name"]), "{:e}".format(val))
                 # Reload the config, with the variable's value in place
@@ -121,35 +124,51 @@ def main():
         # A silly solution to let tqdm clean up before upcoming prints
         sleep(0.1)
 
-        # Plot the result
+        # Save the result
         final.append(np.column_stack((res, times)))
 
-    # print(final)
-    fig = plt.figure()
-    ax = [fig.add_subplot(221, projection='3d')] + [fig.add_subplot(2,2,i) for i in range(2,5)]
-    for f in final:
-        ax[0].plot(f[:, 0], f[:, 1], f[:, 2])
-        ax[1].plot(f[:, 6], f[:, 2])
-        ax[2].plot(f[:, 6], f[:, 0])
-        ax[3].plot(f[:, 6], f[:, 1])
-    l = ("x", "y", "z")
-    for i, axis in enumerate(ax[1:]):
-        axis.set_xlabel("Time (s)")
-        axis.set_ylabel("{} (m)".format(l[i]))
+    # Output
+    tqdm.write("Making the output...")
+    out_params = config["output"]
+    labels = ("x", "y", "z", "v_x", "v_y", "v_z", "time")
 
-    # z = np.linspace(0,-0.006,10)
-    # w = 3.39728e-6 * np.sqrt(1 + ((z * 532 * 1e-9) / (np.pi * 3.39728e-6 ** 2)) ** 2)
-    # ax[0].plot(w, np.zeros_like(w), z)
-    # ax[0].plot(-w, np.zeros_like(w), z)
-    # ax[0].plot(np.zeros_like(w), w, z)
-    # ax[0].plot(np.zeros_like(w), -w, z)
+    if out_params["show-main-graph"]:
+        fig = plt.figure()
+        ax = [fig.add_subplot(221, projection='3d')] + [fig.add_subplot(2,2,i) for i in range(2,5)]
+        for f in final:
+            ax[0].plot(f[:, 0], f[:, 1], f[:, 2])
+            ax[1].plot(f[:, 6], f[:, 2])
+            ax[2].plot(f[:, 6], f[:, 0])
+            ax[3].plot(f[:, 6], f[:, 1])
+        for i, axis in enumerate(ax[1:]):
+            axis.set_xlabel("Time (s)")
+            axis.set_ylabel("{} (m)".format(labels[i]))
+        fig.tight_layout()
 
-    plt.tight_layout()
-    plt.show()
+    if out_params["graphs"] is not None:
+        var_names = [var["name"] for var in variables]
+        print(var_values)
+        for graph in out_params["graphs"]:
+            fig, ax = plt.subplots()
+            for i, f in enumerate(final):
+                if len(var_names):
+                    legend = ", ".join(["{}: {:.2e}".format(var_names[j], var_values[j][i]) for j in range(len(var_names))])
+                else:
+                    legend=""
+                ax.plot(f[:, graph["x"]["column"]]/graph["x"]["scale"],
+                        f[:, graph["y"]["column"]]/graph["y"]["scale"],
+                        label=legend)
+            ax.set_xlabel(r"{} ({})".format(
+                labels[graph["x"]["column"]] if graph["x"]["label"] is None else graph["x"]["label"],
+                graph["x"]["unit"]
+            ))
+            ax.set_ylabel(r"{} ({})".format(
+                labels[graph["y"]["column"]] if graph["y"]["label"] is None else graph["y"]["label"],
+                graph["y"]["unit"]
+            ))
+            ax.grid()
+            ax.legend()
 
-    fig, ax = plt.subplots()
-    for f in final:
-        ax.plot(f[:, 0], f[:, 2])
     plt.show()
 
 

@@ -1,6 +1,6 @@
 # This is an example YAML config file
 variables:
-  steps: 4
+  steps: 2
   vars:
 ##    - name: var1
 ##      start: 500
@@ -9,16 +9,45 @@ variables:
 ##      value: &var1 __var1__
     - name: var2
       start: 100
-      end: 1000
+      end: 104
       step: 1
       value: &var2 __var2__
 
 params:
   mass: &mass 1.3089969389957473e-12
   start: 0
-  end: 1
-  steps: 10000
+  end: .1
+  steps: 1000
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
+
+output:
+  show-main-graph: False
+  save-as: test
+  graphs:
+    - show: False
+      name:
+      x:
+        column: 6
+        label: test
+        scale: 1
+        unit: s
+      y:
+        column: 0
+        label:
+        scale: 1.e-6
+        unit: $\mu m$
+    - show: False
+      name:
+      x:
+        column: 6
+        label: test
+        scale: 1
+        unit: s
+      y:
+        column: 2
+        label:
+        scale: 1.e-6
+        unit: $\mu m$
 
 forces:
   - type: drag
