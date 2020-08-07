@@ -1,17 +1,17 @@
 # This is an example YAML config file
 variables:
-  steps: 2
+  steps: 4
   vars:
-##    - name: var1
-##      start: 500
-##      end: 505
-##      step: 1
-##      value: &var1 __var1__
-    - name: var2
+#    - name: var1
+#      start: 500
+#      end: 505
+#      step: 1
+#      value: &var1 __var1__
+    - name: ray_n
       start: 100
-      end: 104
+      end: 500
       step: 1
-      value: &var2 __var2__
+      value: &ray_n __ray_n__
 
 params:
   mass: &mass 1.3089969389957473e-12
@@ -21,12 +21,15 @@ params:
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
 
 output:
-  show-main-graph: True
+  show-main-graph: False
   # You can use tags from https://strftime.org/ to include current date elements in this name
   save-as: "%Y-%m-%d-%H-%M-%S-test"
+  csv:
+    save: True
+    sparse: 2
   graphs:
-    - show: True
-      name: Atest
+    - show: False
+      name:
       x:
         column: 6
         label: test
@@ -37,7 +40,7 @@ output:
         label:
         scale: 1.e-6
         unit: $\mu m$
-    - show: True
+    - show: False
       name:
       x:
         column: 6
@@ -83,6 +86,6 @@ forces:
           dir: [0,0,1]
           waist_radius: 3.39728e-6
           power: 300.e-3
-          n: *var2
+          n: *ray_n
           wavelength: 532
           emit_radius: *radius

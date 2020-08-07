@@ -79,8 +79,7 @@ def main():
 
     final = []
 
-    tqdm.write("Running the simulation...")
-    var_values = [[]] * len(variables)
+    var_values = [[] for i in range(len(variables))]
     # Go through variable steps
     for vs in range(var_steps):
         # If variables have been defined, calculate their current value and push that into the config
@@ -133,6 +132,8 @@ def main():
     tqdm.write("Making the output...")
     out_params = config["output"]
     labels = ("x", "y", "z", "v_x", "v_y", "v_z", "time")
+    labels_main = ("z", "x", "y")
+    var_names = [var["name"] for var in variables]
     savepath = ""
     if out_params["save-as"] is not None:
         now = datetime.now()
@@ -142,28 +143,37 @@ def main():
         with open("config.yaml", 'r') as f:
             with open(os.path.join(savepath, "config.yaml"), 'w') as fw:
                 fw.write(f.read())
+        if out_params["csv"]["save"]:
+            for i, f in enumerate(final):
+                header = ", ".join(["{}: {:e}".format(var_names[j], var_values[j][i]) for j in range(len(var_names))])
+                np.savetxt(os.path.join(savepath, str(i)+".csv"), f[::out_params["csv"]["sparse"]], delimiter=",", header=header)
 
     if out_params["show-main-graph"] or len(savepath):
-        fig = plt.figure()
+        fig = plt.figure(figsize=(12.0, 10.0))
         ax = [fig.add_subplot(221, projection='3d')] + [fig.add_subplot(2,2,i) for i in range(2,5)]
-        for f in final:
+        for i, f in enumerate(final):
+            if len(var_names):
+                legend = ", ".join(["{}: {:.2e}".format(var_names[j], var_values[j][i]) for j in range(len(var_names))])
+            else:
+                legend = ""
             ax[0].plot(f[:, 0], f[:, 1], f[:, 2])
             ax[1].plot(f[:, 6], f[:, 2])
             ax[2].plot(f[:, 6], f[:, 0])
-            ax[3].plot(f[:, 6], f[:, 1])
+            ax[3].plot(f[:, 6], f[:, 1], label=legend)
         for i, axis in enumerate(ax[1:]):
             axis.set_xlabel("Time (s)")
-            axis.set_ylabel("{} (m)".format(labels[i]))
+            axis.set_ylabel("{} (m)".format(labels_main[i]))
+            axis.grid()
+        if len(var_names):
+            ax[3].legend()
         fig.tight_layout()
-        print(savepath)
+        tqdm.write("The output will be saved in " + savepath)
         if len(savepath):
             fig.savefig(os.path.join(savepath, "main.png"), bbox_inches="tight")
         if not out_params["show-main-graph"]:
             plt.close(fig)
 
     if out_params["graphs"] is not None:
-        var_names = [var["name"] for var in variables]
-        print(var_values)
         for graph in out_params["graphs"]:
             fig, ax = plt.subplots()
             for i, f in enumerate(final):
@@ -183,7 +193,8 @@ def main():
                 graph["y"]["unit"]
             ))
             ax.grid()
-            ax.legend()
+            if len(var_names):
+                ax.legend()
 
             if len(savepath) and graph["name"] is not None:
                 fig.savefig(os.path.join(savepath, graph["name"]+".png"), bbox_inches="tight")
