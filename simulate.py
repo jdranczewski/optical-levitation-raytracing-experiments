@@ -18,9 +18,11 @@ from scipy.integrate import odeint
 from importlib import import_module
 import matplotlib.pyplot as plt
 from forces.ray_tracer import make_scene
+from tqdm import tqdm
+from time import sleep
 
 
-def derivatives(t, state, forces, mass):
+def derivatives(t, state, forces, mass, pbar):
     """
     This function returs the derivatives of x, y, v_x, and v_y for a given state and a set of forces.
 
@@ -31,6 +33,9 @@ def derivatives(t, state, forces, mass):
     :return: d[x, y, v_x, v_y]/dt
     """
     # print(t)
+    if t < pbar.total:
+        pbar.n = t
+    pbar.refresh()
     forces_v = [force(state, t) for force in forces]
     acc = np.sum(forces_v, axis=0)/mass
     # print("-" * 20)
@@ -73,7 +78,7 @@ def main():
 
     # Go through variable steps
     for vs in range(var_steps):
-        print("var_step")
+        tqdm.write("var_step")
         # If variables have been defined, calculate their current value and push that into the config
         if len(variables):
             with open("config.yaml", 'r') as f:
@@ -85,7 +90,7 @@ def main():
                         val = var["start"] + (var["end"]-var["start"])*vs/(var_steps-1)
                     else:
                         val = var["start"]
-                    print(val)
+                    tqdm.write(str(val))
                     # ... and include that value in the variable'd definition in the yaml file
                     text = text.replace("__{}__".format(var["name"]), "{:e}".format(val))
                 # Reload the config, with the variable's value in place
@@ -110,7 +115,11 @@ def main():
         # print(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
 
         # Do the actual calculation
-        res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, sim_params["mass"]), tfirst=True)
+        pbar = tqdm(total=sim_params["end"])
+        res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, sim_params["mass"], pbar), tfirst=True)
+        pbar.close()
+        # A silly solution to let tqdm clean up before upcoming prints
+        sleep(0.1)
 
         # Plot the result
         final.append(np.column_stack((res, times)))
