@@ -19,6 +19,8 @@ params:
   end: 1
   steps: 10000
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
+  progress-check:
+    steps: 1
 
 forces:
   - type: drag

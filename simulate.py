@@ -17,6 +17,7 @@ import numpy as np
 from scipy.integrate import odeint
 from importlib import import_module
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from forces.ray_tracer import make_scene
 
 
@@ -110,9 +111,18 @@ def main():
         # print(sim_params["start"], sim_params["end"], int(sim_params["steps"]))
 
         # Do the actual calculation
-        res = odeint(derivatives, sim_params["initial-conditions"], times, args=(forces, sim_params["mass"]), tfirst=True)
+        steps = sim_params["progress-check"]["steps"]
+        tstep = int(sim_params["steps"]) // steps
+        res = np.zeros((sim_params["steps"], 6))
+        init = np.array(sim_params["initial-conditions"])
+        for i in tqdm(range(steps)):
+            start, end = i*tstep, (i+1)*tstep
+            if i+1 == steps:
+                end = len(times)
+            res[start:end] = odeint(derivatives, init, times[start:end], args=(forces, sim_params["mass"]), tfirst=True)
+            init = res[end - 1]
 
-        # Plot the result
+        # Store the result
         final.append(np.column_stack((res, times)))
 
     # print(final)
