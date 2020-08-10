@@ -30,6 +30,10 @@ from time import sleep
 import os
 
 
+ehx = []
+ehz = []
+efx = []
+efz = []
 def derivatives(t, state, forces, mass, pbar):
     """
     This function returs the derivatives of x, y, v_x, and v_y for a given state and a set of forces.
@@ -45,8 +49,18 @@ def derivatives(t, state, forces, mass, pbar):
         pbar.n = t
         pbar.refresh()
     # Compute the values of the various forces and sum them
-    acc = np.sum([force(state, t) for force in forces], axis=0)/mass
+    forces = [force(state, t) for force in forces]
+    acc = np.sum(forces, axis=0)/mass
+    # print(state[2])
+    # if abs(state[2]) > 1:
+    #     print(np.array(forces) / mass)
     # Return an array of form [v_x, v_y, v_z, a_x, a_y, a_z]
+    # print("p", [state[0], state[1], state[2]])
+    # print("acc", [acc[0], acc[1], acc[2]])
+    ehx.append(state[0])
+    ehz.append(state[2])
+    efx.append(acc[0])
+    efz.append(acc[2])
     return np.array([state[3], state[4], state[5], acc[0], acc[1], acc[2]])
 
 
@@ -249,6 +263,16 @@ def main():
                 plt.close(fig)
 
     # Show all the graphs that haven't been closed
+    fig, ax = plt.subplots()
+    ax.quiver(ehx, ehz, efx, efz, scale=500)
+
+    fig, ax = plt.subplots()
+    ax.plot(ehx,efx, "x-")
+    ax.plot(ehx,efz, "x-")
+
+    fig, ax = plt.subplots()
+    ax.plot(ehz, efx, "x-")
+    ax.plot(ehz, efz, "x-")
     plt.show()
 
 
