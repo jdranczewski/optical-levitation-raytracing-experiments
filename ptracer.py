@@ -526,6 +526,28 @@ class Surface(TracerObject):
         return d
 
     def plot(self, ax):
+        points = np.array([self.origin + [-.5, .5, 0],
+                           self.origin + [.5, .5, 0],
+                           self.origin + [.5, -.5, 0],
+                           self.origin + [-.5, -.5, 0],
+                           self.origin + [-.5, .5, 0]])
+        # Rotate around y
+        c = self._normal[2]
+        s = np.sqrt(1-c**2)
+        rot = np.array([[c, 0, s],
+                        [0, 1, 0],
+                        [-s, 0, c]])
+        points = np.dot(points, rot.T)
+
+        angle = np.arctan2(self._normal[1], self._normal[0])
+        c = np.cos(angle)
+        s = np.sin(angle)
+        rot = np.array([[c, -s, 0],
+                        [s, c, 0],
+                        [0, 0, 1]])
+        points = np.dot(points, rot.T)
+
+        ax.plot(points[:, 0], points[:, 1], points[:, 2])
         ax.quiver(*self.origin, *self._normal, color="tab:orange")
 
 
