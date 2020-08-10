@@ -139,8 +139,11 @@ def main():
         pbar = tqdm(total=sim_params["end"])
 
         # Do the calculation
+        kw = sim_params["odeint-kwargs"]
+        kw = {} if kw is None else kw
         res, info = odeint(derivatives, sim_params["initial-conditions"], times,
-                           args=(forces, sim_params["mass"], pbar), tfirst=True, full_output=True, rtol=1e-5)
+                           args=(forces, sim_params["mass"], pbar), tfirst=True, full_output=True,
+                           **kw)
         # print(list(info["nfe"]))
         # print(info)
         pbar.close()

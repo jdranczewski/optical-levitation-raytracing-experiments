@@ -19,11 +19,14 @@ params:
   end: .1
   steps: 1000
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
+  odeint-kwargs:
+    rtol: 1.e-5
 
 output:
-  show-main-graph: False
+  show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-test"
+#  save-as: "%Y-%m-%d-%H-%M-%S-test"
+  save-as:
   csv:
     save: True
     sparse: 2
