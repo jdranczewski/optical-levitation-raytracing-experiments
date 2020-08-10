@@ -139,8 +139,10 @@ def main():
         pbar = tqdm(total=sim_params["end"])
 
         # Do the calculation
-        res = odeint(derivatives, sim_params["initial-conditions"], times,
-                     args=(forces, sim_params["mass"], pbar), tfirst=True)
+        res, info = odeint(derivatives, sim_params["initial-conditions"], times,
+                           args=(forces, sim_params["mass"], pbar), tfirst=True, full_output=True, rtol=1e-5)
+        # print(list(info["nfe"]))
+        # print(info)
         pbar.close()
         # A silly solution to let tqdm clean up before upcoming prints
         sleep(0.1)

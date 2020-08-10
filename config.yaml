@@ -1,6 +1,6 @@
 # This is an example YAML config file
 variables:
-  steps: 4
+  steps: 1
   vars:
 #    - name: var1
 #      start: 500
@@ -8,7 +8,7 @@ variables:
 #      step: 1
 #      value: &var1 __var1__
     - name: ray_n
-      start: 100
+      start: 300
       end: 500
       step: 1
       value: &ray_n __ray_n__
