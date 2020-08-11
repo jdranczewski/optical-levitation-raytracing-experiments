@@ -43,7 +43,11 @@ def normalize_array(x):
     :param x: an array of vectors in np.array form
     :return: np.array - an array of normalised vectors
     """
-    return x / np.sqrt(np.einsum('...i,...i', x, x)).reshape(-1, 1)
+    norm = np.sqrt(np.einsum('...i,...i', x, x))
+    mask = norm > 0
+    norm = norm.reshape(-1, 1)
+    x[mask, :] = x[mask, :] / norm[mask]
+    return x
 
 
 def rot_to_vector(points, vector):
@@ -200,7 +204,7 @@ class Scene:
                  range(0, len(self.history[-1]), sparse)]):
             rh = np.array(ray_hist)
             ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=self.r_weights[i]/max_w, **ray_kwargs)
-            # ax.plot(rh[:, 0], rh[:, 1], alpha=0.1, **ray_kwargs)
+            # ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=0.3, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
         if m_quiver:
@@ -482,7 +486,7 @@ class BasicRF(RayFactory):
 
 
 class AdaptiveGaussianRF(RayFactory):
-    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius):
+    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius, curve=False):
         super().__init__()
         # Calculate the ray origin distribution
         N = int(n)
@@ -511,7 +515,6 @@ class AdaptiveGaussianRF(RayFactory):
 
         # Rotate the points according to the dir vector
         _dir = normalize(np.array(dir))
-        print(_dir)
         os = rot_to_vector(os, _dir)
 
         # Move the calculated points to the emit origin
@@ -529,6 +532,18 @@ class AdaptiveGaussianRF(RayFactory):
         w = waist_radius * np.sqrt(1 + ((z*wavelength*1e-9)/(np.pi*waist_radius**2))**2)
         intensities = 2*power / (np.pi*w**2) * np.exp(-2 * r**2 / w ** 2)
         self.weights = intensities / photon_energy * areas
+
+        # Calculate directions for spreading rays
+        if curve:
+            z_r = np.pi*waist_radius**2/(wavelength*1e-9)
+            a = r * z / (z ** 2 + z_r ** 2)
+            a[a>1] = 1
+            b = np.sqrt(1 - a**2)
+            rvr_n = normalize_array(rvr)
+            self.dirs = np.einsum("i,j->ji", _dir, b) + np.einsum("ij,i->ij", rvr_n, a)
+        else:
+            self.dirs = np.full((N, 3), _dir)
+
 
         self.wavelength = wavelength
 
