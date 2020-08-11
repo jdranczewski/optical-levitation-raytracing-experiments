@@ -46,6 +46,32 @@ def normalize_array(x):
     return x / np.sqrt(np.einsum('...i,...i', x, x)).reshape(-1, 1)
 
 
+def rot_to_vector(points, vector):
+    """
+    Rotate a set of points initially on the (x,y) plane so that the new normal of their plane is the given vector.
+
+    :param points: np.array of points, [[X,Y,Z], [X,Y,Z], ...]
+    :param vector: 3d normalised vector as a np.array, [X,Y,Z]
+    :return:
+    """
+    # Rotate around y
+    c = vector[2]
+    s = np.sqrt(1 - c ** 2)
+    rot = np.array([[c, 0, s],
+                    [0, 1, 0],
+                    [-s, 0, c]])
+    points = np.dot(points, rot.T)
+
+    # Rotate around z
+    angle = np.arctan2(vector[1], vector[0])
+    c = np.cos(angle)
+    s = np.sin(angle)
+    rot = np.array([[c, -s, 0],
+                    [s, c, 0],
+                    [0, 0, 1]])
+    return np.dot(points, rot.T)
+
+
 #################################
 #     Main abstract classes     #
 #################################
@@ -457,15 +483,19 @@ class BasicRF(RayFactory):
 
 class AdaptiveGaussianRF(RayFactory):
     def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius):
-        # New way to emit rays, needed for 3D
         super().__init__()
+        # Calculate the ray origin distribution
         N = int(n)
         R = emit_radius
 
+        # n is the number of rings, d is the distance between rings,
+        # d_ring the distance between points on the rings (roughly)
+        # We aim for d and d_ring to be similar
         n = round(.5 * (1 + np.sqrt(1 + 4 * (N - 1) / np.pi)))
         d = R / (n - .5)
         d_ring = np.pi * d * n * (n - 1) / (N - 1)
 
+        # Distribute the points
         os = np.zeros((N, 3))
         areas = np.zeros(N)
         areas[0] = np.pi * (d/2)**2
@@ -478,15 +508,21 @@ class AdaptiveGaussianRF(RayFactory):
             os[start:start+n_ring] = np.array((i*d*np.cos(t_ring), i*d*np.sin(t_ring), np.zeros(n_ring))).T
             areas[start:start + n_ring] = 2*i*np.pi*d**2 / n_ring
             start += n_ring
+
+        # Rotate the points according to the dir vector
+        _dir = normalize(np.array(dir))
+        print(_dir)
+        os = rot_to_vector(os, _dir)
+
+        # Move the calculated points to the emit origin
         self.origins = os + origin
 
-        _dir = normalize(np.array(dir))
         self.dirs = np.full((N, 3), _dir)
 
         # Calculate the necessary ray weights
         z = _dir.dot(np.array(origin) - np.array(waist_origin))
         rv = self.origins - np.array(waist_origin)
-        rvr = rv - np.einsum("ij,j->ij", rv, _dir)
+        rvr = rv - np.einsum("ij,j->i", rv, _dir).reshape((-1,1)) * _dir
         r = np.sqrt(np.einsum('...i,...i', rvr, rvr))
 
         photon_energy = 6.62607004e-25 * 299792458 / wavelength
@@ -534,21 +570,7 @@ class Surface(TracerObject):
                            self.origin + [.5, -.5, 0],
                            self.origin + [-.5, -.5, 0],
                            self.origin + [-.5, .5, 0]])
-        # Rotate around y
-        c = self._normal[2]
-        s = np.sqrt(1-c**2)
-        rot = np.array([[c, 0, s],
-                        [0, 1, 0],
-                        [-s, 0, c]])
-        points = np.dot(points, rot.T)
-
-        angle = np.arctan2(self._normal[1], self._normal[0])
-        c = np.cos(angle)
-        s = np.sin(angle)
-        rot = np.array([[c, -s, 0],
-                        [s, c, 0],
-                        [0, 0, 1]])
-        points = np.dot(points, rot.T)
+        points = rot_to_vector(points, self._normal)
 
         ax.plot(points[:, 0], points[:, 1], points[:, 2])
         ax.quiver(*self.origin, *self._normal, color="tab:orange")
