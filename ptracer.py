@@ -264,7 +264,8 @@ class TracerObject:
         :param wavelength: The ray wavelength in nanometers.
         :return: refracted ray directions, refracted ray weights, new reflected ray: directions, weights, origins
         """
-        raise NotImplementedError
+        empty = np.array([])
+        return dirs, weights, empty, empty, empty
 
     def reflect(self, os, dirs, weights, wavelength):
         """
@@ -409,6 +410,7 @@ class BasicRF(RayFactory):
         :param weight: a single value (float) or a list of values for the ray weight
         :param wavelength: a single float for the ray's wavelength
         """
+        super().__init__()
         # Store the wavelength
         self.wavelength = float(wavelength)
 
@@ -456,6 +458,7 @@ class BasicRF(RayFactory):
 class AdaptiveGaussianRF(RayFactory):
     def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius):
         # New way to emit rays, needed for 3D
+        super().__init__()
         N = int(n)
         R = emit_radius
 
