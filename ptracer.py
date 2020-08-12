@@ -629,3 +629,46 @@ class Sphere(TracerObject):
 
     def plot(self, ax):
         ax.plot([self.origin[0]], [self.origin[1]], [self.origin[2]], "o", ms=10, alpha=0.2)
+
+
+class Triangle(TracerObject):
+    def __init__(self, a, b, c, origin=None, *args, **kwargs):
+        origin = np.array([0, 0, 0]) if origin is None else np.array(origin)
+        super().__init__(origin, *args, **kwargs)
+        self.a = self.origin + a
+        self.b = self.origin + b
+        self.c = self.origin + c
+        self.edge1 = self.b-self.a
+        self.edge2 = self.c-self.a
+        self._normal = normalize(np.cross(self.edge1, self.edge2))
+
+    def normals(self, points):
+        return np.full((len(points), 3), self._normal)
+
+    def intersect_d(self, os, dirs):
+        d = np.full(len(os), np.inf)
+        u = np.full(len(os), np.inf)
+        v = np.full(len(os), np.inf)
+
+        p = np.cross(dirs, self.edge2)
+        det = np.einsum("j,ij->i", self.edge1, p)
+        mask = np.abs(det) > 0
+
+        t = os - self.a
+        u[mask] = np.einsum("ij,ij->i", t, p[mask, :]) / det[mask]
+        mask = mask & (u >= 0) & (u <= 1)
+
+        q = np.cross(t, self.edge1)
+        v[mask] = np.einsum("ij,ij->i", dirs[mask, :], q[mask, :]) / det[mask]
+        mask = mask & (v >= 0) & (u+v <= 1)
+
+        d[mask] = np.einsum("j,ij->i", self.edge2, q[mask]) / det[mask]
+        d[d<0] = np.inf
+
+        return d
+
+    def plot(self, ax):
+        points = np.array((self.a, self.b, self.c, self.a)).T
+        ax.plot(*points)
+        points = np.array((self.a, self.a+self._normal)).T
+        ax.plot(*points, c="tab:orange")
