@@ -87,7 +87,7 @@ class Scene:
     :property self.objects: a list of all the TracerObjects in the scene
     """
 
-    def __init__(self, rf, objects=[]):
+    def __init__(self, rf, objects):
         """
         :param rf: a RayFactory object
         :param objects: a list of TracerObject objects
@@ -182,7 +182,7 @@ class Scene:
             if np.all(np.invert(self.active)):
                 break
 
-    def plot(self, ax, ray_kwargs={}, m_quiver=False, m_quiver_kwargs={}, sparse=1):
+    def plot(self, ax, ray_kwargs=None, m_quiver=False, m_quiver_kwargs=None, sparse=1):
         """
         Given a matplotlib axis object, plot all simulation elements onto it.
 
@@ -199,6 +199,8 @@ class Scene:
         # Not every ray has existed throughout the entire run, hence the great list comprehension below, which
         # constructs paths for all the rays.
         max_w = np.amax(self.r_weights)
+        ray_kwargs = {} if ray_kwargs is None else ray_kwargs
+        m_quiver_kwargs = {} if m_quiver_kwargs is None else m_quiver_kwargs
         for i, ray_hist in enumerate(
                 [[self.history[j][i] for j in range(len(self.history)) if i < len(self.history[j])] for i in
                  range(0, len(self.history[-1]), sparse)]):
