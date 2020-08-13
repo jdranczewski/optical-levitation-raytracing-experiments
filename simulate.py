@@ -144,7 +144,7 @@ def main():
         res, info = odeint(derivatives, sim_params["initial-conditions"], times,
                            args=(forces, sim_params["mass"], pbar), tfirst=True, full_output=True,
                            **kw)
-        # print(list(info["nfe"]))
+        print(sum(list(info["nfe"])))
         # print(info)
         pbar.close()
         # A silly solution to let tqdm clean up before upcoming prints

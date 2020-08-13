@@ -20,7 +20,7 @@ params:
   steps: 1000
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
   odeint-kwargs:
-    rtol: 1.e-5
+    rtol: 1
 
 output:
   show-main-graph: True
@@ -72,18 +72,26 @@ forces:
   - type: ray_tracer
     params:
       objects:
-        - type: Sphere
+#        - type: Sphere
+#          origin:
+#            type: offset
+#            value: [0,0,0]
+#          params:
+#            radius: *radius
+#            n_in: 1.52
+        - type: Mesh
           origin:
             type: offset
             value: [0,0,0]
           params:
-            radius: *radius
+            filename: "sphere.obj"
+            scale: *radius
             n_in: 1.52
       ray-factory:
         type: AdaptiveGaussianRF
         origin:
           type: offset
-          value: [0, 0, -5.e-6]
+          value: [0, 0, -5.1e-6]
         params:
           waist_origin: [0, 0, 0]
           dir: [0,0,1]

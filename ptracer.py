@@ -20,7 +20,7 @@ NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e9 (w
 
 
 import numpy as np
-from numba import jit
+import jit_methods as jm
 from matplotlib.patches import Circle, Wedge
 
 
@@ -219,8 +219,8 @@ class Scene:
         if m_quiver:
             ms = np.array([obj.momentum for obj in self.objects])
             os = np.array([obj.origin for obj in self.objects])
-            print(os)
-            print(ms)
+            # print(os)
+            # print(ms)
             mmax = np.sqrt(np.amax(np.sum(ms**2, axis=0)))
             ax.quiver(os[:, 0], os[:, 1], os[:, 2], ms[:, 0], ms[:, 1], ms[:, 2], length=1e-6/mmax, **m_quiver_kwargs)
 
@@ -349,54 +349,9 @@ class TracerObject:
         # Calculate the normals
         normals = self.normals(os)
 
-        # Establish normals, n1, and n2 arrays based on whether the rays are going in or out
-        cos_i = -np.einsum("ij,ij->i", dirs, normals)
-        going_out = cos_i < 0
-        normals[going_out] *= -1
-        n1 = np.full(len(os), self.n_out)
-        n2 = np.full(len(os), self.n_in)
-        n1[going_out] = self.n_in
-        n2[going_out] = self.n_out
-        cos_i[going_out] *= -1
-
-        # Calculate a few more angles
-        sin_i2 = 1 - cos_i**2
-        cos_t = np.sqrt(1 - (n1 / n2) ** 2 * (1 - cos_i ** 2))
-
-        # Calculate the initial momentum of the rays
-        init_weights = n1*weights
-
-        # Mark out rays that undergo total internal reflection
-        tir = np.sqrt(sin_i2) > n2 / n1
-        ntir = np.invert(tir)
-
-        # Calculate the reflection and refraction coefficients
-        R_perp = ((n1 * cos_i - n2 * cos_t) / (n1 * cos_i + n2 * cos_t)) ** 2
-        R_para = ((n2 * cos_i - n1 * cos_t) / (n2 * cos_i + n1 * cos_t)) ** 2
-        R = (R_perp + R_para) / 2
-        T = 1 - R
-
-        # Calculate the ray's new direction under refraction and reflection
-        d_refr = (np.einsum("i,ij->ij", n1/n2, dirs) +
-                  np.einsum("i,ij->ij", (n1 / n2 * cos_i - np.sqrt(1 - (n1 / n2) ** 2 * sin_i2)), normals))
-        d_refl = dirs + 2 * np.einsum("ij,i->ij", normals, cos_i)
-
-        # For rays that undergo total internal reflection, assign the reflected direction as the main one
-        d_refr[tir] = d_refl[tir]
-
-        # Create new rays for the reflections
-        new_d = d_refl[ntir]
-        new_weights = weights[ntir] * R[ntir]
-        new_origins = os[ntir]
-
-        # Distribute ray weights
-        weights[ntir] *= T[ntir]
-
-        # Calculate the change of momentum
-        n2[tir] = n1[tir]
-        self.momentum -= (np.einsum("ij,i->j", d_refr, n2*weights) +
-                          np.einsum("ij,i->j", new_d, n1[ntir]*new_weights) -
-                          np.einsum("ij,i->j", dirs, init_weights)) / wavelength
+        momentum, d_refr, weights, new_d, new_weights, new_origins = jm.refract(os, dirs, weights, wavelength,
+                                                                                normals, self.n_in, self.n_out)
+        self.momentum -= momentum
 
         return d_refr, weights, new_d, new_weights, new_origins
 
@@ -658,7 +613,7 @@ class Triangle(TracerObject):
         return np.full((len(points), 3), self._normal)
 
     def intersect_d(self, os, dirs):
-        return intersect_d_triangles_numba(os, dirs, self.a, self.edge1, self.edge2)
+        return jm.intersect_d_triangles(os, dirs, self.a, self.edge1, self.edge2)
 
     def plot(self, ax):
         points = np.array((self.a, self.b, self.c, self.a)).T
@@ -666,40 +621,6 @@ class Triangle(TracerObject):
         # points = np.array((self.a, self.a+self._normal*.1)).T
         # ax.plot(*points, c="tab:orange", alpha=0.5)
 
-
-# @jit(nopython=True)
-def intersect_d_triangles_numba(os, dirs, a, edge1, edge2):
-    d = np.full(len(os), np.inf)
-
-    p = np.cross(dirs, edge2)
-    # det = np.einsum("j,ij->i", edge1, p)
-    det = np.sum(p*edge1, axis=1)
-    mask = np.abs(det) > 0
-    det[~mask] = 1
-    # print(mask)
-    # if (~mask).all():
-    #     return d
-
-    t = os - a
-    # u = np.einsum("ij,ij->i", t, p) / det
-    u = np.sum(p*t, axis=1) / det
-    mask = mask & (u >= 0) & (u <= 1)
-    # print(mask)
-    # if (~mask).all():
-    #     return d
-
-    q = np.cross(t, edge1)
-    # v = np.einsum("ij,ij->i", dirs, q) / det
-    v = np.sum(dirs*q, axis=1) / det
-    mask = mask & (v >= 0) & (u + v <= 1)
-    # print(mask)
-    # if (~mask).all():
-    #     return d
-
-    # d[mask] = np.einsum("j,ij->i", edge2, q[mask]) / det[mask]
-    d[mask] = np.sum(edge2*q[mask], axis=1) / det[mask]
-    d[d < 0] = np.inf
-    return d
 
 ############################
 #     ObjectContainers     #
