@@ -20,6 +20,7 @@ NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e9 (w
 
 
 import numpy as np
+from numba import jit
 from matplotlib.patches import Circle, Wedge
 
 
@@ -99,6 +100,12 @@ class Scene:
         self.r_wavelength = rf.wavelength
         self.active = np.ones(len(self.r_origins)).astype(bool)
         self.objects = objects
+        offset = 0
+        for i in range(len(objects)):
+            if isinstance(self.objects[i+offset], ObjectContainer):
+                self.objects.extend(self.objects[i+offset].objects)
+                del self.objects[i+offset]
+                offset -= 1
 
     def step(self):
         """
@@ -403,6 +410,11 @@ class TracerObject:
         pass
 
 
+class ObjectContainer:
+    def __init__(self, objects):
+        self.objects = objects
+
+
 #################################
 #     Various Ray Factories     #
 #################################
@@ -632,7 +644,7 @@ class Sphere(TracerObject):
 
 
 class Triangle(TracerObject):
-    def __init__(self, a, b, c, origin=None, *args, **kwargs):
+    def __init__(self, origin, a, b, c, *args, **kwargs):
         origin = np.array([0, 0, 0]) if origin is None else np.array(origin)
         super().__init__(origin, *args, **kwargs)
         self.a = self.origin + a
@@ -646,29 +658,60 @@ class Triangle(TracerObject):
         return np.full((len(points), 3), self._normal)
 
     def intersect_d(self, os, dirs):
-        d = np.full(len(os), np.inf)
-        u = np.full(len(os), np.inf)
-        v = np.full(len(os), np.inf)
-
-        p = np.cross(dirs, self.edge2)
-        det = np.einsum("j,ij->i", self.edge1, p)
-        mask = np.abs(det) > 0
-
-        t = os - self.a
-        u[mask] = np.einsum("ij,ij->i", t, p[mask, :]) / det[mask]
-        mask = mask & (u >= 0) & (u <= 1)
-
-        q = np.cross(t, self.edge1)
-        v[mask] = np.einsum("ij,ij->i", dirs[mask, :], q[mask, :]) / det[mask]
-        mask = mask & (v >= 0) & (u+v <= 1)
-
-        d[mask] = np.einsum("j,ij->i", self.edge2, q[mask]) / det[mask]
-        d[d<0] = np.inf
-
-        return d
+        return intersect_d_triangles_numba(os, dirs, self.a, self.edge1, self.edge2)
 
     def plot(self, ax):
         points = np.array((self.a, self.b, self.c, self.a)).T
-        ax.plot(*points)
-        points = np.array((self.a, self.a+self._normal)).T
-        ax.plot(*points, c="tab:orange")
+        ax.plot(*points, c="tab:blue", alpha=0.5)
+        # points = np.array((self.a, self.a+self._normal*.1)).T
+        # ax.plot(*points, c="tab:orange", alpha=0.5)
+
+
+# @jit(nopython=True)
+def intersect_d_triangles_numba(os, dirs, a, edge1, edge2):
+    d = np.full(len(os), np.inf)
+
+    p = np.cross(dirs, edge2)
+    # det = np.einsum("j,ij->i", edge1, p)
+    det = np.sum(p*edge1, axis=1)
+    mask = np.abs(det) > 0
+    det[~mask] = 1
+    # print(mask)
+    # if (~mask).all():
+    #     return d
+
+    t = os - a
+    # u = np.einsum("ij,ij->i", t, p) / det
+    u = np.sum(p*t, axis=1) / det
+    mask = mask & (u >= 0) & (u <= 1)
+    # print(mask)
+    # if (~mask).all():
+    #     return d
+
+    q = np.cross(t, edge1)
+    # v = np.einsum("ij,ij->i", dirs, q) / det
+    v = np.sum(dirs*q, axis=1) / det
+    mask = mask & (v >= 0) & (u + v <= 1)
+    # print(mask)
+    # if (~mask).all():
+    #     return d
+
+    # d[mask] = np.einsum("j,ij->i", edge2, q[mask]) / det[mask]
+    d[mask] = np.sum(edge2*q[mask], axis=1) / det[mask]
+    d[d < 0] = np.inf
+    return d
+
+############################
+#     ObjectContainers     #
+############################
+class Mesh(ObjectContainer):
+    def __init__(self, origin, filename, scale, *args, **kwargs):
+        with open(filename, 'r') as f:
+            lines = f.readlines()
+        verts = np.array([np.array(l[2:-1].split(" ")).astype(float) for l in lines if l[:2] == 'v '])*scale
+        faces = [[int(v.split("/")[0]) - 1 for v in l[2:-1].split(" ")] for l in lines if l[:2] == 'f ']
+        objects = []
+        for f in faces:
+            objects.append(Triangle(origin, *verts[f], *args, **kwargs))
+        super().__init__(objects)
+

@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 def factory(config, params):
     def ray_tracer_force(state, t):
         scene = make_scene(state, params)
-        scene.run()
+        scene.run(limit=5)
         # if state[2]>1.3e-5:
         # scene.propagate(1e-6)
         # fig = plt.figure()
