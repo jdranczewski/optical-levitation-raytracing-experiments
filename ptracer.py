@@ -321,16 +321,8 @@ class TracerObject:
         normals = self.normals(os)
 
         # Determine which refractive index to use for momentum change calculation
-        cos_i = -np.einsum("ij,ij->i", dirs, normals)
-        going_out = cos_i < 0
-        n1 = np.full(len(os), self.n_out)
-        n1[going_out] = self.n_in
-
-        # Reflect the rays and store the momentum change
-        change = 2 * np.einsum("ij,i->ij", normals, cos_i)
-        print(wavelength)
-        self.momentum -= np.einsum("ij,i->j", change, n1*weights) / wavelength
-        dirs += change
+        momentum, dirs, weights = jm.reflect(os, dirs, weights, wavelength, normals, self.n_in, self.n_out)
+        self.momentum -= momentum
 
         # Return three empty arrays, as no new rays are created during a reflection
         empty = np.array([])

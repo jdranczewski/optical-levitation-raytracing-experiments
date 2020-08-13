@@ -64,6 +64,24 @@ def refract(os, dirs, weights, wavelength, normals, n_in, n_out):
 
 
 @jit(nopython=True)
+def reflect(os, dirs, weights, wavelength, normals, n_in, n_out):
+    # cos_i = -np.einsum("ij,ij->i", dirs, normals)
+    cos_i = -np.sum(dirs*normals, axis=1)
+    going_out = cos_i < 0
+    n1 = np.full(len(os), n_out)
+    n1[going_out] = n_in
+
+    # Reflect the rays and store the momentum change
+    # change = 2 * np.einsum("ij,i->ij", normals, cos_i)
+    change = 2 * normals*cos_i.reshape((-1,1))
+    # momentum = np.einsum("ij,i->j", change, n1 * weights) / wavelength
+    momentum = np.sum(change*(n1*weights).reshape((-1, 1)), axis=0) /wavelength
+    dirs += change
+
+    return momentum, dirs, weights
+
+
+@jit(nopython=True)
 def intersect_d_triangles(os, dirs, a, edge1, edge2):
     d = np.full(len(os), np.inf)
 
