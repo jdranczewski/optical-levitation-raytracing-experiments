@@ -614,6 +614,29 @@ class Triangle(TracerObject):
         # ax.plot(*points, c="tab:orange", alpha=0.5)
 
 
+class MeshTO(TracerObject):
+    def __init__(self, origin, filename, scale, *args, **kwargs):
+        super().__init__(origin, *args, **kwargs)
+        with open(filename, 'r') as f:
+            lines = f.readlines()
+        verts = np.array([np.array(l[2:-1].split(" ")).astype(float) for l in lines if l[:2] == 'v '])*scale
+        faces = np.array([[int(v.split("/")[0]) - 1 for v in l[2:-1].split(" ")] for l in lines if l[:2] == 'f '])
+        self.a = verts[faces[:, 0]]
+        self.edge1 = verts[faces[:, 1]] - self.a
+        self.edge2 = verts[faces[:, 2]] - self.a
+        self._normal = normalize_array(np.cross(self.edge1, self.edge2))
+
+    def plot(self, ax):
+        a = self.a
+        b = a + self.edge1
+        c = a + self.edge2
+        for i in range(len(a)):
+            points = np.array((a[i], b[i], c[i], a[i])).T
+            ax.plot(*points, c="tab:blue", alpha=0.5)
+            # points = np.array((a[i], a[i]+self._normal[i]*.1)).T
+            # ax.plot(*points, c="tab:orange", alpha=0.5)
+
+
 ############################
 #     ObjectContainers     #
 ############################
