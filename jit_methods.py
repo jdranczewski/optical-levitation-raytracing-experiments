@@ -114,3 +114,58 @@ def intersect_d_triangles(os, dirs, a, edge1, edge2):
     d[mask] = np.sum(edge2*q[mask], axis=1) / det[mask]
     d[d < 0] = np.inf
     return d
+
+
+@jit(nopython=True)
+def intersect_d_mesh(os, dirs, a, edge1, edge2):
+    n_rays = len(dirs)
+    n_tris = len(a)
+    d = np.zeros((n_rays, n_tris))
+
+    p = np.zeros((n_rays, n_tris, 3))
+    for i in range(n_tris):
+        p[:, i, :] = np.cross(dirs, edge2[i])
+    # print(p)
+
+    det = np.zeros((n_rays, n_tris))
+    for i in range(n_tris):
+        det[:, i] = np.sum(p[:, i] * edge1[i], axis=1)
+    mask = np.abs(det) > 0
+    for i in range(n_tris):
+        det[:, i][~mask[:, i]] = 1
+    # print(mask)
+
+    t = np.zeros((n_rays, n_tris, 3))
+    for i in range(n_tris):
+        t[:, i, :] = os - a[i]
+    # print(t)
+
+    u = np.zeros((n_rays, n_tris))
+    for i in range(n_tris):
+        u[:, i] = np.sum(p[:, i, :] * t[:, i, :], axis=1) / det[:, i]
+    # print(u)
+    mask = mask & (u >= 0) & (u <= 1)
+
+    q = np.zeros((n_rays, n_tris, 3))
+    for i in range(n_tris):
+        q[:, i, :] = np.cross(t[:, i, :], edge1[i])
+
+    v = np.zeros((n_rays, n_tris))
+    for i in range(n_tris):
+        # v = np.einsum("ij,ij->i", dirs, q) / det
+        v[:, i] = np.sum(dirs * q[:, i, :], axis=1) / det[:, i]
+    mask = mask & (v >= 0) & (u + v <= 1)
+
+    for i in range(n_tris):
+        d[:, i] = np.sum(edge2[i] * q[:, i, :], axis=1) / det[:, i]
+    for i in range(n_tris):
+        d[:, i][d[:, i] < 0] = np.inf
+        d[:, i][~mask[:, i]] = np.inf
+    collided = np.count_nonzero(d != np.inf, axis=1) > 0
+
+    m = np.zeros(n_rays)
+    index = np.zeros(n_rays)
+    for i in range(n_rays):
+        m[i] = np.amin(d[i])
+        index[i] = np.argmin(d[i])
+    return m, index[collided]

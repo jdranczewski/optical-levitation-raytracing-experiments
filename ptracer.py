@@ -632,54 +632,9 @@ class MeshTO(TracerObject):
         return self._normals[self._index]
 
     def intersect_d(self, os, dirs):
-        edge1, edge2 = self.edge1, self.edge2
-        a = self.a
-        n_rays = len(dirs)
-        n_tris = len(a)
-        d = np.zeros((n_rays, n_tris))
-
-        p = np.zeros((n_rays, n_tris, 3))
-        for i in range(n_tris):
-            p[:, i, :] = np.cross(dirs, edge2[i])
-        # print(p)
-
-        det = np.zeros((n_rays, n_tris))
-        for i in range(n_tris):
-            det[:, i] = np.sum(p[:, i] * edge1[i], axis=1)
-        mask = np.abs(det) > 0
-        det[~mask] = 1
-        # print(mask)
-
-        t = np.zeros((n_rays, n_tris, 3))
-        for i in range(n_tris):
-            t[:, i, :] = os - a[i]
-        # print(t)
-
-        u = np.zeros((n_rays, n_tris))
-        for i in range(n_tris):
-            u[:, i] = np.sum(p[:, i, :] * t[:, i, :], axis=1) / det[:, i]
-        # print(u)
-        mask = mask & (u >= 0) & (u <= 1)
-
-        q = np.zeros((n_rays, n_tris, 3))
-        for i in range(n_tris):
-            q[:, i, :] = np.cross(t[:, i, :], edge1[i])
-
-        v = np.zeros((n_rays, n_tris))
-        for i in range(n_tris):
-            # v = np.einsum("ij,ij->i", dirs, q) / det
-            v[:, i] = np.sum(dirs * q[:, i, :], axis=1) / det[:, i]
-        mask = mask & (v >= 0) & (u + v <= 1)
-
-        for i in range(n_tris):
-            d[:, i] = np.sum(edge2[i] * q[:, i, :], axis=1) / det[:, i]
-        d[d < 0] = np.inf
-        d[~mask] = np.inf
-        collided = np.count_nonzero(d != np.inf, axis=1) > 0
-        self._index = np.argmin(d, axis=1)[collided]
-        # print("index", collided)
-        # print(np.amin(d, axis=1))
-        return np.amin(d, axis=1)
+        d, index = jm.intersect_d_mesh(os, dirs, self.a, self.edge1, self.edge2)
+        self._index = index.astype(int)
+        return d
 
     def plot(self, ax):
         a = self.a
