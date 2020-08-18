@@ -138,31 +138,30 @@ def intersect_d_mesh(os, dirs, a, edge1, edge2):
     mask = np.abs(det) > 0
     for i in range(n_tris):
         det[:, i][~mask[:, i]] = 1
-    # print(mask)
+    # print(len(mask[0]))
 
     t = np.zeros((n_rays, n_tris, 3))
     for i in range(n_tris):
-        t[:, i, :] = os - a[i]
+        t[mask[:, i], i, :] = os[mask[:, i]] - a[i]
     # print(t)
 
     u = np.zeros((n_rays, n_tris))
     for i in range(n_tris):
-        u[:, i] = np.sum(p[:, i, :] * t[:, i, :], axis=1) / det[:, i]
+        u[mask[:, i], i] = np.sum(p[mask[:, i], i, :] * t[mask[:,i], i, :], axis=1) / det[mask[:, i], i]
     # print(u)
     mask = mask & (u >= 0) & (u <= 1)
 
     q = np.zeros((n_rays, n_tris, 3))
     for i in range(n_tris):
-        q[:, i, :] = np.cross(t[:, i, :], edge1[i])
+        q[mask[:, i], i, :] = np.cross(t[mask[:, i], i, :], edge1[i])
 
     v = np.zeros((n_rays, n_tris))
     for i in range(n_tris):
-        # v = np.einsum("ij,ij->i", dirs, q) / det
-        v[:, i] = np.sum(dirs * q[:, i, :], axis=1) / det[:, i]
+        v[mask[:, i], i] = np.sum(dirs[mask[:, i]] * q[mask[:, i], i, :], axis=1) / det[mask[:, i], i]
     mask = mask & (v >= 0) & (u + v <= 1)
 
     for i in range(n_tris):
-        d[:, i] = np.sum(edge2[i] * q[:, i, :], axis=1) / det[:, i]
+        d[mask[:, i], i] = np.sum(edge2[i] * q[mask[:, i], i, :], axis=1) / det[mask[:, i], i]
     for i in range(n_tris):
         d[:, i][d[:, i] < 0] = np.inf
         d[:, i][~mask[:, i]] = np.inf
