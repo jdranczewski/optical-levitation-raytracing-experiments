@@ -22,6 +22,8 @@ NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e9 (w
 import numpy as np
 import jit_methods as jm
 from random import random
+from multiprocessing import Array, Process
+from ctypes import c_double
 from matplotlib.patches import Circle, Wedge
 
 
@@ -635,8 +637,24 @@ class MeshTO(TracerObject):
         return self._normals[self._index]
 
     def intersect_d(self, os, dirs):
-        d, index = jm.intersect_d_mesh(os, dirs, self.a, self.edge1, self.edge2)
-        self._index = index.astype(int)
+        da = Array(c_double, len(os))
+        d = np.frombuffer(da.get_obj())
+        d[:] = np.zeros(len(os))
+
+        ia = Array(c_double, len(os))
+        i = np.frombuffer(ia.get_obj())
+        i[:] = np.zeros(len(os))
+
+        chunk = int(np.ceil(len(os)/7))
+        for j in range(7):
+            s = slice(j*chunk, (j+1)*chunk)
+            p = Process(target=jm.intersect_d_mesh, args=(os[s], dirs[s], self.a, self.edge1, self.edge2, d[s], i[s]))
+            p.start()
+        p.join()
+        # print(d)
+        # print(i)
+
+        self._index = i[i >= 0].astype(int)
         return d
 
     def plot(self, ax):
