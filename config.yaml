@@ -20,26 +20,27 @@ params:
   steps: 1000
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
   odeint-kwargs:
-    rtol: 1
+#    rtol: [1.e-4, 1, 1.e-5, 1.e-4, 1.e-4, 1.e-4]
+#    hmin: 1.e-6
 
 output:
   show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-#  save-as: "%Y-%m-%d-%H-%M-%S-test"
-  save-as:
+  save-as: "%Y-%m-%d-%H-%M-%S-ideal-sphere"
+#  save-as:
   csv:
     save: True
     sparse: 2
   graphs:
-    - show: False
+    - show: True
       name:
       x:
         column: 6
-        label: test
+        label:
         scale: 1
         unit: s
       y:
-        column: 0
+        column: 3
         label:
         scale: 1.e-6
         unit: $\mu m$
@@ -72,21 +73,21 @@ forces:
   - type: ray_tracer
     params:
       objects:
-#        - type: Sphere
-#          origin:
-#            type: offset
-#            value: [0,0,0]
-#          params:
-#            radius: *radius
-#            n_in: 1.52
-        - type: Mesh
+        - type: Sphere
           origin:
             type: offset
             value: [0,0,0]
           params:
-            filename: "sphere.obj"
-            scale: *radius
+            radius: *radius
             n_in: 1.52
+#        - type: Mesh
+#          origin:
+#            type: offset
+#            value: [0,0,0]
+#          params:
+#            filename: "cruel_sphere.obj"
+#            scale: *radius
+#            n_in: 1.52
       ray-factory:
         type: AdaptiveGaussianRF
         origin:

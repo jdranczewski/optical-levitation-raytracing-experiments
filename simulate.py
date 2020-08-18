@@ -17,7 +17,7 @@ import yaml
 
 # Numerical manipulation and integration
 import numpy as np
-from scipy.integrate import odeint
+from scipy.integrate import odeint, solve_ivp
 
 # Display
 import matplotlib.pyplot as plt
@@ -141,11 +141,14 @@ def main():
         # Do the calculation
         kw = sim_params["odeint-kwargs"]
         kw = {} if kw is None else kw
-        res, info = odeint(derivatives, sim_params["initial-conditions"], times,
-                           args=(forces, sim_params["mass"], pbar), tfirst=True, full_output=True,
-                           **kw)
-        print(sum(list(info["nfe"])))
+        # res, info = odeint(derivatives, sim_params["initial-conditions"], times,
+        #                    args=(forces, sim_params["mass"], pbar), tfirst=True, full_output=True,
+        #                    **kw)
+        # print(sum(list(info["nfe"])))
         # print(info)
+        res = solve_ivp(derivatives, (sim_params["start"], sim_params["end"]), sim_params["initial-conditions"],
+                        args=(forces, sim_params["mass"], pbar), t_eval=times)
+        res = res.y.T
         pbar.close()
         # A silly solution to let tqdm clean up before upcoming prints
         sleep(0.1)
