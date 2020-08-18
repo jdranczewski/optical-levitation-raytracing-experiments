@@ -21,6 +21,7 @@ NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e9 (w
 
 import numpy as np
 import jit_methods as jm
+from random import random
 from matplotlib.patches import Circle, Wedge
 
 
@@ -448,7 +449,7 @@ class BasicRF(RayFactory):
 
 
 class AdaptiveGaussianRF(RayFactory):
-    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius, curve=False):
+    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius, curve=False, random_switch=False):
         super().__init__()
         # Calculate the ray origin distribution
         N = int(n)
@@ -471,6 +472,8 @@ class AdaptiveGaussianRF(RayFactory):
             n_ring = round((2 * np.pi * i * d + offset) / d_ring)
             offset = (2 * np.pi * i * d + offset) - n_ring * d_ring
             t_ring = np.arange(0, 2 * np.pi, 2 * np.pi / n_ring)
+            if random_switch:
+                t_ring += 2*np.pi*random()
             os[start:start+n_ring] = np.array((i*d*np.cos(t_ring), i*d*np.sin(t_ring), np.zeros(n_ring))).T
             areas[start:start + n_ring] = 2*i*np.pi*d**2 / n_ring
             start += n_ring

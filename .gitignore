@@ -1,5 +1,6 @@
 # The output directory
 output/*/
+*.mtl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

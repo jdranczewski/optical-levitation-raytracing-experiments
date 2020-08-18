@@ -24,16 +24,16 @@ params:
 #    hmin: 1.e-6
 
 output:
-  show-main-graph: True
+  show-main-graph: False
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-ideal-sphere"
+  save-as: "%Y-%m-%d-%H-%M-%S-simple sphere-random bundle angle-faster?"
 #  save-as:
   csv:
     save: True
     sparse: 2
   graphs:
-    - show: True
-      name:
+    - show: False
+      name: "vx"
       x:
         column: 6
         label:
@@ -73,21 +73,21 @@ forces:
   - type: ray_tracer
     params:
       objects:
-        - type: Sphere
-          origin:
-            type: offset
-            value: [0,0,0]
-          params:
-            radius: *radius
-            n_in: 1.52
-#        - type: Mesh
+#        - type: Sphere
 #          origin:
 #            type: offset
 #            value: [0,0,0]
 #          params:
-#            filename: "cruel_sphere.obj"
-#            scale: *radius
+#            radius: *radius
 #            n_in: 1.52
+        - type: MeshTO
+          origin:
+            type: offset
+            value: [0,0,0]
+          params:
+            filename: "simple_sphere.obj"
+            scale: *radius
+            n_in: 1.52
       ray-factory:
         type: AdaptiveGaussianRF
         origin:
@@ -101,3 +101,4 @@ forces:
           n: *ray_n
           wavelength: 532
           emit_radius: *radius
+          random_switch: True
