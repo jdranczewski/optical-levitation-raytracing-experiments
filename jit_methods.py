@@ -1,8 +1,13 @@
 import numpy as np
 from numba import jit
 
+kwargs = {
+    "nopython": True,
+    "cache": True,
+}
 
-@jit(nopython=True)
+
+@jit(**kwargs)
 def refract(os, dirs, weights, wavelength, normals, n_in, n_out):
     # Establish normals, n1, and n2 arrays based on whether the rays are going in or out
     # cos_i = -np.einsum("ij,ij->i", dirs, normals)
@@ -63,7 +68,7 @@ def refract(os, dirs, weights, wavelength, normals, n_in, n_out):
     return momentum, d_refr, weights, new_d, new_weights, new_origins
 
 
-@jit(nopython=True)
+@jit(**kwargs)
 def reflect(os, dirs, weights, wavelength, normals, n_in, n_out):
     # cos_i = -np.einsum("ij,ij->i", dirs, normals)
     cos_i = -np.sum(dirs*normals, axis=1)
@@ -81,7 +86,7 @@ def reflect(os, dirs, weights, wavelength, normals, n_in, n_out):
     return momentum, dirs, weights
 
 
-@jit(nopython=True)
+@jit(**kwargs)
 def intersect_d_triangles(os, dirs, a, edge1, edge2):
     d = np.full(len(os), np.inf)
 
@@ -116,7 +121,7 @@ def intersect_d_triangles(os, dirs, a, edge1, edge2):
     return d
 
 
-@jit(nopython=True)
+@jit(**kwargs)
 def intersect_d_mesh(os, dirs, a, edge1, edge2):
     n_rays = len(dirs)
     n_tris = len(a)
