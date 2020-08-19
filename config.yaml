@@ -26,7 +26,7 @@ params:
 output:
   show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-symmetric rotated sphere-hexagonal bundle-low start"
+  save-as: "%Y-%m-%d-%H-%M-%S-symmetric sphere-hexagonal bundle-edges correct"
 #  save-as:
   csv:
     save: True
@@ -85,7 +85,7 @@ forces:
             type: offset
             value: [0,0,0]
           params:
-            filename: "symmetric_rotated.obj"
+            filename: "symmetric.obj"
             scale: *radius
             n_in: 1.52
       ray-factory:

@@ -720,15 +720,22 @@ class MeshTO(TracerObject):
         self.edge1 = verts[faces[:, 1]] - self.a
         self.edge2 = verts[faces[:, 2]] - self.a
         self._normals = normalize_array(np.cross(self.edge1, self.edge2))
-        self._index = None
+        self._d = None
 
     def normals(self, points):
-        return self._normals[self._index]
+        normals = np.zeros((self._d.shape[0], 3))
+        for i in range(self._d.shape[0]):
+            # print(self._d[i][self._d[i]!= np.inf])
+            indices = np.nonzero(np.isclose(self._d[i], self._d[i].min()) & (self._d[i] != np.inf))
+            # print(indices)
+            normals[i, :] = np.mean(self._normals[indices], axis=0)
+        # print("-"*15)
+        return normalize_array(normals[~np.isnan(normals[:, 0])])
 
     def intersect_d(self, os, dirs):
-        d, index = jm.intersect_d_mesh(os, dirs, self.a, self.edge1, self.edge2)
-        self._index = index.astype(int)
-        return d
+        md, d_all = jm.intersect_d_mesh(os, dirs, self.a, self.edge1, self.edge2)
+        self._d = d_all
+        return md
 
     def plot(self, ax):
         a = self.a
