@@ -408,6 +408,14 @@ class RayFactory:
     def __init__(self):
         pass
 
+    def __getitem__(self, item):
+        new = RayFactory()
+        new.origins = self.origins[item]
+        new.dirs = self.dirs[item]
+        new.weights = self.weights[item]
+        new.wavelength = self.wavelength
+        return new
+
     def __add__(self, other):
         self.origins = np.concatenate((self.origins, other.origins))
         self.dirs = np.concatenate((self.dirs, other.dirs))
