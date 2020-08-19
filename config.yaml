@@ -18,7 +18,7 @@ params:
   start: 0
   end: .1
   steps: 1000
-  initial-conditions: [-3e-6, 0, 100.e-6, 0, 0, 0]
+  initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
   odeint-kwargs:
 #    rtol: [1.e-4, 1, 1.e-5, 1.e-4, 1.e-4, 1.e-4]
 #    hmin: 1.e-6
@@ -26,7 +26,7 @@ params:
 output:
   show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-symmetric sphere-hexagonal bundle"
+  save-as: "%Y-%m-%d-%H-%M-%S-symmetric rotated sphere-hexagonal bundle-low start"
 #  save-as:
   csv:
     save: True
@@ -85,7 +85,7 @@ forces:
             type: offset
             value: [0,0,0]
           params:
-            filename: "symmetric.obj"
+            filename: "symmetric_rotated.obj"
             scale: *radius
             n_in: 1.52
       ray-factory:

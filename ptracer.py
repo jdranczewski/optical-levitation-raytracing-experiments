@@ -216,8 +216,8 @@ class Scene:
                 [[self.history[j][i] for j in range(len(self.history)) if i < len(self.history[j])] for i in
                  range(0, len(self.history[-1]), sparse)]):
             rh = np.array(ray_hist)
-            # ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=self.r_weights[i]/max_w, **ray_kwargs)
-            ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=1, **ray_kwargs)
+            ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=self.r_weights[i]/max_w, **ray_kwargs)
+            # ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=1, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
         if m_quiver:
