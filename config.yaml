@@ -16,8 +16,8 @@ variables:
 params:
   mass: &mass 1.3089969389957473e-12
   start: 0
-  end: .1
-  steps: 1000
+  end: .01
+  steps: 100
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
   odeint-kwargs:
 #    rtol: [1.e-4, 1, 1.e-5, 1.e-4, 1.e-4, 1.e-4]
@@ -26,7 +26,7 @@ params:
 output:
   show-main-graph: False
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-simple sphere-random bundle angle-faster?"
+  save-as: "%Y-%m-%d-%H-%M-%S-simple sphere-random bundle angle-parallel"
 #  save-as:
   csv:
     save: True

@@ -22,7 +22,7 @@ NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e9 (w
 import numpy as np
 import jit_methods as jm
 from random import random
-from matplotlib.patches import Circle, Wedge
+from multiprocessing import Process, Queue
 
 
 ############################
@@ -174,7 +174,7 @@ class Scene:
         self.r_origins += self.r_dirs*d
         self.history.append(self.r_origins.copy())
 
-    def run(self, limit=100, margin=1e-10, announce_steps=False):
+    def run(self, limit=100, queue=None, margin=1e-10, announce_steps=False):
         """
         Run a full ray tracing simulation. Stops when all rays terminated or limit of steps reached.
 
@@ -190,6 +190,8 @@ class Scene:
                 print("Step", i)
             if np.all(np.invert(self.active)):
                 break
+        if queue is not None:
+            queue.put(self.momentum)
 
     def plot(self, ax, ray_kwargs=None, m_quiver=False, m_quiver_kwargs=None, sparse=1):
         """
@@ -238,6 +240,33 @@ class Scene:
             return np.einsum("ij->j", np.array(active))
         else:
             return np.array([0, 0, 0])
+
+
+class MultiScene:
+    def __init__(self, rf, obj, n_threads=5):
+        self.scenes = []
+        batch = int(np.ceil(len(rf.origins) / n_threads))
+        self.momentum = np.zeros(3)
+        for i in range(n_threads):
+            rf2 = RayFactory()
+            s = slice(batch*i, batch*(i+1))
+            rf2.origins = rf.origins[s]
+            rf2.dirs = rf.dirs[s]
+            rf2.weights = rf.weights[s]
+            rf2.wavelength = rf.wavelength
+            self.scenes.append(Scene(rf2, obj))
+
+    def run(self, limit=100, margin=1e-10):
+        q = Queue()
+        ps = []
+        for scene in self.scenes:
+            p = Process(target=scene.run, args=(limit, q))
+            p.start()
+            ps.append(p)
+        [p.join() for p in ps]
+
+        for i in range(len(self.scenes)):
+            self.momentum += q.get()
 
 
 class TracerObject:
