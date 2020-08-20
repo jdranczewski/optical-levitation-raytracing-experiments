@@ -26,7 +26,7 @@ params:
 output:
   show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-six sphere-hexagonal bundle-edges correct-limit 5-300 rays"
+  save-as: "%Y-%m-%d-%H-%M-%S-six sphere-smooth six bundle-limit 2-300 rays"
 #  save-as:
   csv:
     save: True
@@ -81,12 +81,12 @@ forces:
 #          params:
 #            radius: *radius
 #            n_in: 1.52
-        - type: MeshTO
+        - type: SmoothMeshTO
           origin:
             type: offset
             value: [0,0,0]
           params:
-            filename: "six.obj"
+            filename: "six_normals.obj"
             scale: *radius
             n_in: 1.52
       ray-factory:

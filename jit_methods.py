@@ -190,3 +190,71 @@ def mesh_normals(d, n):
             ns[i, j] = np.mean(n[indices][:, j])
     # print("-"*15)
     return ns / np.sqrt(ns[:, 0]**2 + ns[:, 1]**2 + ns[:, 2]**2).reshape((-1, 1))
+
+
+@jit(**kwargs)
+def intersect_d_mesh_smooth(os, dirs, a, edge1, edge2, na, nb, nc):
+    n_rays = len(dirs)
+    n_tris = len(a)
+    d = np.zeros((n_rays, n_tris))
+
+    p = np.zeros((n_rays, n_tris, 3))
+    for i in range(n_tris):
+        p[:, i, :] = np.cross(dirs, edge2[i])
+    # print(p)
+
+    det = np.zeros((n_rays, n_tris))
+    for i in range(n_tris):
+        det[:, i] = np.sum(p[:, i] * edge1[i], axis=1)
+    mask = np.abs(det) > 0
+    for i in range(n_tris):
+        det[:, i][~mask[:, i]] = 1
+    # print(len(mask[0]))
+
+    t = np.zeros((n_rays, n_tris, 3))
+    for i in range(n_tris):
+        t[mask[:, i], i, :] = os[mask[:, i]] - a[i]
+    # print(t)
+
+    u = np.zeros((n_rays, n_tris))
+    for i in range(n_tris):
+        u[mask[:, i], i] = np.sum(p[mask[:, i], i, :] * t[mask[:,i], i, :], axis=1) / det[mask[:, i], i]
+    # print(u)
+    mask = mask & (u >= 0) & (u <= 1)
+
+    q = np.zeros((n_rays, n_tris, 3))
+    for i in range(n_tris):
+        q[mask[:, i], i, :] = np.cross(t[mask[:, i], i, :], edge1[i])
+
+    v = np.zeros((n_rays, n_tris))
+    for i in range(n_tris):
+        v[mask[:, i], i] = np.sum(dirs[mask[:, i]] * q[mask[:, i], i, :], axis=1) / det[mask[:, i], i]
+    mask = mask & (v >= 0) & (u + v <= 1)
+
+    for i in range(n_tris):
+        d[mask[:, i], i] = np.sum(edge2[i] * q[mask[:, i], i, :], axis=1) / det[mask[:, i], i]
+    for i in range(n_tris):
+        d[:, i][d[:, i] < 0] = np.inf
+        d[:, i][~mask[:, i]] = np.inf
+
+    m = np.zeros(n_rays)
+    index = np.zeros(n_rays)
+    for i in range(n_rays):
+        m[i] = np.amin(d[i])
+        index[i] = np.argmin(d[i])
+
+    # Compute normals
+    w = 1 - u - v
+    collided = np.count_nonzero(d != np.inf, axis=1) > 0
+    im = index[collided].astype(np.int64)
+    ir = np.arange(n_rays)[collided].astype(np.int64)
+    normals = np.zeros((len(im), 3))
+    for i in range(len(im)):
+        # print(na[im[i]])
+        # print(w[i, im[i]])
+        i_ray = ir[i]
+        i_tri = im[i]
+        normals[i, :] = na[i_tri]*w[i_ray, i_tri] + nb[i_tri]*u[i_ray, i_tri] + nc[i_tri]*v[i_ray, i_tri]
+    # print(normals)
+
+    return m, normals
