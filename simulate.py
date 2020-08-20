@@ -204,6 +204,7 @@ def main():
             ax[1].plot(f[:, 6], f[:, 2])
             ax[2].plot(f[:, 6], f[:, 0])
             ax[3].plot(f[:, 6], f[:, 1], label=legend)
+            ax[0].plot([f[0, 0]], [f[0, 1]], [f[0, 2]], "o", c="tab:grey")
 
         # Cosmetics
         for i, axis in enumerate(ax[1:]):
