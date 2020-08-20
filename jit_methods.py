@@ -171,3 +171,22 @@ def intersect_d_mesh(os, dirs, a, edge1, edge2, margin=1e-3):
         m[i] = np.amin(d[i])
 
     return m, d
+
+
+@jit(**kwargs)
+def mesh_normals(d, n):
+    # Mask out the rays with no collisions
+    collided = np.count_nonzero(d != np.inf, axis=1) > 0
+    d = d[collided]
+
+    ns = np.zeros((d.shape[0], 3))
+    for i in range(d.shape[0]):
+        m = d[i].min()
+        # print(np.abs((d[i] - m)/m))
+        indices = np.nonzero((np.abs((d[i] - m)/m) < 1e-5) & (d[i] != np.inf))
+        # print((np.abs((d[i] - m)/m)))
+        # print(indices)
+        for j in range(3):
+            ns[i, j] = np.mean(n[indices][:, j])
+    # print("-"*15)
+    return ns / np.sqrt(ns[:, 0]**2 + ns[:, 1]**2 + ns[:, 2]**2).reshape((-1, 1))

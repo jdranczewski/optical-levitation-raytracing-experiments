@@ -8,7 +8,7 @@ variables:
 #      step: 1
 #      value: &var1 __var1__
     - name: ray_n
-      start: 301
+      start: 300
       end: 500
       step: 1
       value: &ray_n __ray_n__
@@ -26,7 +26,7 @@ params:
 output:
   show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-symmetric sphere-hexagonal bundle-edges correct"
+  save-as: "%Y-%m-%d-%H-%M-%S-six sphere-hexagonal bundle-edges correct-limit 5-300 rays"
 #  save-as:
   csv:
     save: True
@@ -72,6 +72,7 @@ forces:
       radius: &radius 5.e-6
   - type: ray_tracer
     params:
+      limit: 2
       objects:
 #        - type: Sphere
 #          origin:
@@ -85,7 +86,7 @@ forces:
             type: offset
             value: [0,0,0]
           params:
-            filename: "symmetric.obj"
+            filename: "six.obj"
             scale: *radius
             n_in: 1.52
       ray-factory:

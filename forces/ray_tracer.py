@@ -18,9 +18,10 @@ import matplotlib.pyplot as plt
 
 
 def factory(config, params):
+    limit = params["limit"]
     def ray_tracer_force(state, t):
         scene = make_scene(state, params)
-        scene.run(limit=5)
+        scene.run(limit=limit)
         # if state[2]>1.3e-5:
         # scene.propagate(1e-6)
         # fig = plt.figure()
