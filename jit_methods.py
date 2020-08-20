@@ -193,7 +193,7 @@ def mesh_normals(d, n):
 
 
 @jit(**kwargs)
-def intersect_d_mesh_smooth(os, dirs, a, edge1, edge2, na, nb, nc):
+def intersect_d_mesh_smooth(os, dirs, a, edge1, edge2, na, nb, nc, margin=1e-3):
     n_rays = len(dirs)
     n_tris = len(a)
     d = np.zeros((n_rays, n_tris))
@@ -220,7 +220,7 @@ def intersect_d_mesh_smooth(os, dirs, a, edge1, edge2, na, nb, nc):
     for i in range(n_tris):
         u[mask[:, i], i] = np.sum(p[mask[:, i], i, :] * t[mask[:,i], i, :], axis=1) / det[mask[:, i], i]
     # print(u)
-    mask = mask & (u >= 0) & (u <= 1)
+    mask = mask & (u >= -margin) & (u <= 1+margin)
 
     q = np.zeros((n_rays, n_tris, 3))
     for i in range(n_tris):
@@ -229,7 +229,7 @@ def intersect_d_mesh_smooth(os, dirs, a, edge1, edge2, na, nb, nc):
     v = np.zeros((n_rays, n_tris))
     for i in range(n_tris):
         v[mask[:, i], i] = np.sum(dirs[mask[:, i]] * q[mask[:, i], i, :], axis=1) / det[mask[:, i], i]
-    mask = mask & (v >= 0) & (u + v <= 1)
+    mask = mask & (v >= -margin) & (u + v <= 1+margin)
 
     for i in range(n_tris):
         d[mask[:, i], i] = np.sum(edge2[i] * q[mask[:, i], i, :], axis=1) / det[mask[:, i], i]

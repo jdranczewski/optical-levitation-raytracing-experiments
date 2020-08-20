@@ -193,7 +193,7 @@ class Scene:
         if queue is not None:
             queue.put(self.momentum)
 
-    def plot(self, ax, ray_kwargs=None, m_quiver=False, m_quiver_kwargs=None, sparse=1):
+    def plot(self, ax, show_weight=True, ray_kwargs=None, m_quiver=False, m_quiver_kwargs=None, sparse=1):
         """
         Given a matplotlib axis object, plot all simulation elements onto it.
 
@@ -216,8 +216,10 @@ class Scene:
                 [[self.history[j][i] for j in range(len(self.history)) if i < len(self.history[j])] for i in
                  range(0, len(self.history[-1]), sparse)]):
             rh = np.array(ray_hist)
-            ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=self.r_weights[i]/max_w, **ray_kwargs)
-            # ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=1, **ray_kwargs)
+            if show_weight:
+                ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=self.r_weights[i]/max_w, **ray_kwargs)
+            else:
+                ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=1, **ray_kwargs)
         for obj in self.objects:
             obj.plot(ax)
         if m_quiver:
@@ -768,6 +770,7 @@ class SmoothMeshTO(TracerObject):
     def intersect_d(self, os, dirs):
         md, normals = jm.intersect_d_mesh_smooth(os, dirs, self.a, self.edge1, self.edge2, self.na, self.nb, self.nc)
         self._normals = normals
+        # print(md)
         return md
 
     def plot(self, ax):
