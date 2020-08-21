@@ -35,6 +35,7 @@ def normalize(x):
     :param x: a vector in np.array form
     :return: np.array - normalised vector
     """
+    x = np.array(x)
     return x / np.sqrt(x.dot(x))
 
 
@@ -45,6 +46,7 @@ def normalize_array(x):
     :param x: an array of vectors in np.array form
     :return: np.array - an array of normalised vectors
     """
+    x = x.astype(float)
     norm = np.sqrt(np.einsum('...i,...i', x, x))
     mask = norm > 0
     norm = norm.reshape(-1, 1)
