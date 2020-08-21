@@ -392,9 +392,12 @@ class TracerObject:
         # Calculate the normals
         normals = self.normals(os)
 
-        momentum, d_refr, weights, new_d, new_weights, new_origins = jm.refract(os, dirs, weights, wavelength,
-                                                                                normals, self.n_in, self.n_out)
+        momentum, ang_momentum, d_refr, weights,\
+        new_d, new_weights, new_origins = jm.refract(os, dirs, weights, wavelength,
+                                                     normals, self.n_in, self.n_out,
+                                                     self.ang_origin)
         self.momentum -= momentum
+        self.ang_momentum -= ang_momentum
 
         return d_refr, weights, new_d, new_weights, new_origins
 
@@ -797,13 +800,13 @@ class SmoothMeshTO(TracerObject):
         c = a + self.edge2
         for i in range(len(a)):
             points = np.array((a[i], b[i], c[i], a[i])).T
-            ax.plot(*points, c="tab:blue", alpha=0.3)
+            ax.plot(*points, c="tab:blue", alpha=0.2)
             points = np.array((a[i], a[i]+self.scale*.1*self.na[i])).T
-            ax.plot(*points, c="tab:orange", alpha=1)
+            ax.plot(*points, c="tab:orange", alpha=.1)
             points = np.array((b[i], b[i] + self.scale*.1 * self.nb[i])).T
-            ax.plot(*points, c="tab:orange", alpha=1)
+            ax.plot(*points, c="tab:orange", alpha=.1)
             points = np.array((c[i], c[i] + self.scale*.1 * self.nc[i])).T
-            ax.plot(*points, c="tab:orange", alpha=1)
+            ax.plot(*points, c="tab:orange", alpha=.1)
 
 
 ############################

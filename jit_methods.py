@@ -8,12 +8,13 @@ kwargs = {
 
 
 @jit(**kwargs)
-def refract(os, dirs, weights, wavelength, normals, n_in, n_out):
+def refract(os, dirs, weights, wavelength, normals, n_in, n_out, ang_origin):
     # Establish normals, n1, and n2 arrays based on whether the rays are going in or out
     # cos_i = -np.einsum("ij,ij->i", dirs, normals)
     cos_i = -np.sum(dirs*normals, axis=1)
     going_out = cos_i < 0
     normals[going_out] *= -1
+    # for each ray n1 is for the material it is currently in, and n2 is for the one it'g going into
     n1 = np.full(len(os), n_out)
     n2 = np.full(len(os), n_in)
     n1[going_out] = n_in
@@ -57,18 +58,20 @@ def refract(os, dirs, weights, wavelength, normals, n_in, n_out):
     weights[ntir] *= T[ntir]
 
     # Calculate the change of momentum
+    # Note the values of n2 are switched below for rays that have undergone tir
+    # to make the calculation easier.
     n2[tir] = n1[tir]
-    # momentum = (np.einsum("ij,i->j", d_refr, n2 * weights) +
-    #             np.einsum("ij,i->j", new_d, n1[ntir] * new_weights) -
-    #             np.einsum("ij,i->j", dirs, init_weights)) / wavelength
-    momentum = (np.sum(d_refr * (n2*weights).reshape((-1,1)), axis=0) +
-                np.sum(new_d * (n1[ntir]*new_weights).reshape((-1,1)), axis=0) -
-                np.sum(dirs * init_weights.reshape((-1,1)), axis=0)) / wavelength
 
-    return momentum, d_refr, weights, new_d, new_weights, new_origins
+    final = d_refr * (n2*weights).reshape((-1,1))
+    final[ntir] += new_d * (n1[ntir]*new_weights).reshape((-1, 1))
+    final -= dirs * init_weights.reshape((-1, 1))
+    momentum = np.sum(final, axis=0) / wavelength
+    ang_momentum = np.sum(np.cross((os - ang_origin), final), axis=0)
+
+    return momentum, ang_momentum, d_refr, weights, new_d, new_weights, new_origins
 
 
-# @jit(**kwargs)
+@jit(**kwargs)
 def reflect(os, dirs, weights, wavelength, normals, n_in, n_out, ang_origin):
     # cos_i = -np.einsum("ij,ij->i", dirs, normals)
     cos_i = -np.sum(dirs*normals, axis=1)
