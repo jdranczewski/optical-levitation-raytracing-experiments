@@ -245,6 +245,19 @@ class Scene:
         else:
             return np.array([0, 0, 0])
 
+    @property
+    def ang_momentum(self):
+        """
+        Total momentum acquired by objects in the scene.
+
+        :return: np.array, [X,Y]
+        """
+        active = [obj.ang_momentum for obj in self.objects if obj.active]
+        if len(active):
+            return np.einsum("ij->j", np.array(active))
+        else:
+            return np.array([0, 0, 0])
+
 
 class MultiScene:
     def __init__(self, rf, obj, n_threads=5):
@@ -280,7 +293,7 @@ class TracerObject:
     :parameter self.origin: the object's origin
     :parameter self.momentum: total momentum accumulated by the object
     """
-    def __init__(self, origin, n_out=1., n_in=1., reflective=False, active=True):
+    def __init__(self, origin, n_out=1., n_in=1., ang_origin=None, reflective=False, active=True):
         """
         Create a new TracerObject.
 
@@ -297,9 +310,11 @@ class TracerObject:
         :param reflective:
         """
         self.origin = np.array(origin).astype(float)
+        self.ang_origin = self.origin if ang_origin is None else np.array(ang_origin).astype(float)
         self.n_out = float(n_out)
         self.n_in = float(n_in)
         self.momentum = np.zeros(3)
+        self.ang_momentum = np.zeros(3)
         self.active = active
         # The object's ray-acting function is assigned to the outwards-facing, general "act_rays" function,
         # unless reflective is None, in which case act_rays is left as is.
@@ -356,8 +371,9 @@ class TracerObject:
         normals = self.normals(os)
 
         # Determine which refractive index to use for momentum change calculation
-        momentum, dirs, weights = jm.reflect(os, dirs, weights, wavelength, normals, self.n_in, self.n_out)
+        momentum, ang_momentum, dirs, weights = jm.reflect(os, dirs, weights, wavelength, normals, self.n_in, self.n_out, self.ang_origin)
         self.momentum -= momentum
+        self.ang_momentum -= ang_momentum
 
         # Return three empty arrays, as no new rays are created during a reflection
         empty = np.array([])
@@ -467,7 +483,7 @@ class BasicRF(RayFactory):
         # Store the data, extending if necessary
         if N == -1:
             self.origins = np.column_stack((x, y, z)).astype(float)
-            self.dirs = normalize_array(np.array([dir]))
+            self.dirs = normalize_array(np.array([dir]).astype(float))
             self.weights = np.array([weight]).astype(float)
         else:
             if n[0] == -1:

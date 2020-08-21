@@ -68,8 +68,8 @@ def refract(os, dirs, weights, wavelength, normals, n_in, n_out):
     return momentum, d_refr, weights, new_d, new_weights, new_origins
 
 
-@jit(**kwargs)
-def reflect(os, dirs, weights, wavelength, normals, n_in, n_out):
+# @jit(**kwargs)
+def reflect(os, dirs, weights, wavelength, normals, n_in, n_out, ang_origin):
     # cos_i = -np.einsum("ij,ij->i", dirs, normals)
     cos_i = -np.sum(dirs*normals, axis=1)
     going_out = cos_i < 0
@@ -79,11 +79,12 @@ def reflect(os, dirs, weights, wavelength, normals, n_in, n_out):
     # Reflect the rays and store the momentum change
     # change = 2 * np.einsum("ij,i->ij", normals, cos_i)
     change = 2 * normals*cos_i.reshape((-1,1))
-    # momentum = np.einsum("ij,i->j", change, n1 * weights) / wavelength
-    momentum = np.sum(change*(n1*weights).reshape((-1, 1)), axis=0) /wavelength
+    forces = change*(n1*weights).reshape((-1, 1))
+    momentum = np.sum(forces, axis=0) / wavelength
+    ang_momentum = np.sum(np.cross((os-ang_origin), forces), axis=0) / wavelength
     dirs += change
 
-    return momentum, dirs, weights
+    return momentum, ang_momentum, dirs, weights
 
 
 @jit(**kwargs)
@@ -122,7 +123,7 @@ def intersect_d_triangles(os, dirs, a, edge1, edge2):
 
 
 @jit(**kwargs)
-def intersect_d_mesh(os, dirs, a, edge1, edge2, margin=1e-3):
+def intersect_d_mesh(os, dirs, a, edge1, edge2, margin=1e-2):
     n_rays = len(dirs)
     n_tris = len(a)
     d = np.zeros((n_rays, n_tris))
@@ -193,7 +194,7 @@ def mesh_normals(d, n):
 
 
 @jit(**kwargs)
-def intersect_d_mesh_smooth(os, dirs, a, edge1, edge2, na, nb, nc, margin=1e-3):
+def intersect_d_mesh_smooth(os, dirs, a, edge1, edge2, na, nb, nc, margin=0):
     n_rays = len(dirs)
     n_tris = len(a)
     d = np.zeros((n_rays, n_tris))
@@ -236,6 +237,7 @@ def intersect_d_mesh_smooth(os, dirs, a, edge1, edge2, na, nb, nc, margin=1e-3):
     for i in range(n_tris):
         d[:, i][d[:, i] < 0] = np.inf
         d[:, i][~mask[:, i]] = np.inf
+    # print(d)
 
     m = np.zeros(n_rays)
     index = np.zeros(n_rays)

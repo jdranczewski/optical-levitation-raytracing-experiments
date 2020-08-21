@@ -44,11 +44,13 @@ def make_scene(state, params):
     for i, obj in enumerate(params["objects"]):
         if obj["origin"]["type"] == "offset":
             origin = state[:3] + array(obj["origin"]["value"])
+            ang_origin = state[:3]
             active = True
         else:
             origin = array(obj["origin"]["value"])
+            ang_origin = None
             active = False
-        objects.append(getattr(ptracer, obj["type"])(origin, **obj["params"], active=active))
+        objects.append(getattr(ptracer, obj["type"])(origin, ang_origin=ang_origin, **obj["params"], active=active))
     # print(objects[0].origin)
     # print(t)
     return ptracer.Scene(rf, objects)
