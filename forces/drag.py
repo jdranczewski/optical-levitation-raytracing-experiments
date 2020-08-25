@@ -12,12 +12,13 @@ To contact me, try (in no particular order)
 
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 """
+from numpy import concatenate, zeros
 
 
 def factory(config, params):
     coeff = params["coefficient"]
 
     def drag(state, t):
-        return -coeff * state[3:]
+        return concatenate((-coeff * state[3:6], zeros(3)))
 
     return drag

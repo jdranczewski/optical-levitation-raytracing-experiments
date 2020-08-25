@@ -12,12 +12,13 @@ To contact me, try (in no particular order)
 
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 """
+from numpy import concatenate, zeros
 
 
 def factory(config, params):
     force = params["value"]
 
     def constant_force(state, t):
-        return force
+        return concatenate((force, zeros(3)))
 
     return constant_force

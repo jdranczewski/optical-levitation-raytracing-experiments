@@ -12,7 +12,7 @@ To contact me, try (in no particular order)
 
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 """
-from numpy import array
+from numpy import array, concatenate, zeros
 
 
 def factory(config, params):
@@ -21,6 +21,6 @@ def factory(config, params):
     volume = params["volume"]
 
     def buoyancy(state, t):
-        return -g*density*volume
+        return concatenate((-g*density*volume, zeros(3)))
 
     return buoyancy

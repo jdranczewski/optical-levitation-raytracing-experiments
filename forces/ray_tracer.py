@@ -13,12 +13,13 @@ To contact me, try (in no particular order)
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 """
 import ptracer
-from numpy import array
+from numpy import array, concatenate
 import matplotlib.pyplot as plt
 
 
 def factory(config, params):
     limit = params["limit"]
+
     def ray_tracer_force(state, t):
         scene = make_scene(state, params)
         scene.run(limit=limit)
@@ -29,7 +30,7 @@ def factory(config, params):
         # scene.plot(ax, m_quiver=True, ray_kwargs={"c": "tab:blue"})
         # plt.show()
         # print(scene.momentum, state[:2])
-        return scene.momentum*6.62607004e-34*1e9
+        return concatenate((scene.momentum, scene.ang_momentum))*6.62607004e-34*1e9
 
     return ray_tracer_force
 

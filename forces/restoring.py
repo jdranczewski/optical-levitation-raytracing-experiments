@@ -12,7 +12,7 @@ To contact me, try (in no particular order)
 
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 """
-from numpy import array
+from numpy import array, concatenate, zeros
 
 
 def factory(config, params):
@@ -20,6 +20,6 @@ def factory(config, params):
     coeff = params["coefficient"]
 
     def central(state, t):
-        return -coeff * (state[:3] - origin)
+        return concatenate((-coeff * (state[:3] - origin), zeros(3)))
 
     return central
