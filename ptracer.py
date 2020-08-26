@@ -293,7 +293,7 @@ class TracerObject:
     :parameter self.origin: the object's origin
     :parameter self.momentum: total momentum accumulated by the object
     """
-    def __init__(self, origin, n_out=1., n_in=1., ang_origin=None, reflective=False, active=True):
+    def __init__(self, origin, n_out=1., n_in=1., ang_origin=None, rot=(1,0,0,0), reflective=False, active=True):
         """
         Create a new TracerObject.
 
@@ -311,6 +311,9 @@ class TracerObject:
         """
         self.origin = np.array(origin).astype(float)
         self.ang_origin = self.origin if ang_origin is None else np.array(ang_origin).astype(float)
+        self._rot = np.array(rot).astype(float)
+        offset = jm.rotate(np.array([self.origin - self.ang_origin]), self._rot)[0]
+        self.origin = self.ang_origin + offset
         self.n_out = float(n_out)
         self.n_in = float(n_in)
         self.momentum = np.zeros(3)
@@ -643,7 +646,7 @@ class Surface(TracerObject):
         :param kwargs: TracerObject's kwargs
         """
         super().__init__(origin, *args, **kwargs)
-        self._normal = normalize(np.array(normal))
+        self._normal = jm.rotate(np.array([normalize(np.array(normal))]), self._rot)[0]
         self.along = np.array([self._normal[1], -self._normal[0]]).astype(float)
 
     def normals(self, points):
@@ -659,12 +662,12 @@ class Surface(TracerObject):
         return d
 
     def plot(self, ax):
-        points = np.array([self.origin + [-.5, .5, 0],
-                           self.origin + [.5, .5, 0],
-                           self.origin + [.5, -.5, 0],
-                           self.origin + [-.5, -.5, 0],
-                           self.origin + [-.5, .5, 0]])
-        points = rot_to_vector(points, self._normal)
+        points = np.array([[-.5, .5, 0],
+                           [.5, .5, 0],
+                           [.5, -.5, 0],
+                           [-.5, -.5, 0],
+                           [-.5, .5, 0]])
+        points = rot_to_vector(points, self._normal) + self.origin
 
         ax.plot(points[:, 0], points[:, 1], points[:, 2])
         ax.quiver(*self.origin, *self._normal, color="tab:orange")
@@ -712,6 +715,7 @@ class Triangle(TracerObject):
     def __init__(self, origin, a, b, c, *args, **kwargs):
         origin = np.array([0, 0, 0]) if origin is None else np.array(origin)
         super().__init__(origin, *args, **kwargs)
+        a, b, c = jm.rotate(np.array([a, b, c]), self._rot)
         self.a = self.origin + a
         self.b = self.origin + b
         self.c = self.origin + c
@@ -728,8 +732,8 @@ class Triangle(TracerObject):
     def plot(self, ax):
         points = np.array((self.a, self.b, self.c, self.a)).T
         ax.plot(*points, c="tab:blue", alpha=0.5)
-        # points = np.array((self.a, self.a+self._normal*.1)).T
-        # ax.plot(*points, c="tab:orange", alpha=0.5)
+        points = np.array((self.a, self.a+self._normal*.1)).T
+        ax.plot(*points, c="tab:orange", alpha=0.5)
 
 
 class MeshTO(TracerObject):
@@ -737,7 +741,9 @@ class MeshTO(TracerObject):
         super().__init__(origin, *args, **kwargs)
         with open(filename, 'r') as f:
             lines = f.readlines()
-        verts = np.array([np.array(l[2:-1].split(" ")).astype(float) for l in lines if l[:2] == 'v '])*scale + origin
+        verts = np.array([np.array(l[2:-1].split(" ")).astype(float) for l in lines if l[:2] == 'v '])
+        verts = jm.rotate(verts, self._rot)
+        verts = verts*scale + self.origin
         faces = np.array([[int(v.split("/")[0]) - 1 for v in l[2:-1].split(" ")] for l in lines if l[:2] == 'f '])
         self.a = verts[faces[:, 0]]
         self.edge1 = verts[faces[:, 1]] - self.a
@@ -760,9 +766,9 @@ class MeshTO(TracerObject):
         c = a + self.edge2
         for i in range(len(a)):
             points = np.array((a[i], b[i], c[i], a[i])).T
-            ax.plot(*points, c="tab:blue", alpha=0.5)
-            # points = np.array((a[i], a[i]+self._normal[i]*.1)).T
-            # ax.plot(*points, c="tab:orange", alpha=0.5)
+            ax.plot(*points, c="tab:blue", alpha=0.1)
+            points = np.array((a[i], a[i]+self._normals[i]*.1)).T
+            ax.plot(*points, c="tab:orange", alpha=0.1)
 
 
 class SmoothMeshTO(TracerObject):
@@ -770,10 +776,13 @@ class SmoothMeshTO(TracerObject):
         super().__init__(origin, *args, **kwargs)
         with open(filename, 'r') as f:
             lines = f.readlines()
-        verts = np.array([np.array(l[2:-1].split(" ")).astype(float) for l in lines if l[:2] == 'v '])*scale + origin
+        verts = np.array([np.array(l[2:-1].split(" ")).astype(float) for l in lines if l[:2] == 'v '])
+        verts = jm.rotate(verts, self._rot)
+        verts = verts * scale + self.origin
         faces = np.array([[int(v.split("/")[0]) - 1 for v in l[2:-1].split(" ")] for l in lines if l[:2] == 'f '])
 
         vns = np.array([np.array(l[3:-1].split(" ")).astype(float) for l in lines if l[:3] == 'vn '])
+        vns = jm.rotate(vns, self._rot)
         vni = np.array([[int(v.split("/")[2]) - 1 for v in l[2:-1].split(" ")] for l in lines if l[:2] == 'f '])
         self.na = normalize_array(vns[vni[:, 0]])
         self.nb = normalize_array(vns[vni[:, 1]])

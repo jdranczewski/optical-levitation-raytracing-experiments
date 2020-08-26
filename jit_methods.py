@@ -8,6 +8,19 @@ kwargs = {
 
 
 @jit(**kwargs)
+def rotate(points, q):
+    res = np.zeros((len(points), 4))
+    # q*p
+    res[:,0] = -np.sum(q[1:]*points, axis=1)
+    res[:,1:] = q[0]*points + np.cross(q[1:], points)
+    # (q*p) * q^-1
+    res2 = np.zeros((len(points), 4))
+    res2[:,0] = res[:,0]*q[0] - np.dot(res[:,1:].copy(), -q[1:].copy())
+    res2[:,1:] = res[:,0].copy().reshape((-1,1))*(-q[1:]) + (q[0]*res[:,1:]) + np.cross(res[:,1:], -q[1:])
+    return res2[:,1:]
+
+
+@jit(**kwargs)
 def refract(os, dirs, weights, wavelength, normals, n_in, n_out, ang_origin):
     # Establish normals, n1, and n2 arrays based on whether the rays are going in or out
     # cos_i = -np.einsum("ij,ij->i", dirs, normals)
