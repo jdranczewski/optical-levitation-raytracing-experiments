@@ -23,7 +23,7 @@ def factory(config, params):
     def ray_tracer_force(state, t):
         scene = make_scene(state, params)
         scene.run(limit=limit)
-        # if t>1e-9:
+        # if t>.07:
         #     scene.propagate(1e-6)
         #     fig = plt.figure()
         #     ax = fig.add_subplot(111, projection='3d')

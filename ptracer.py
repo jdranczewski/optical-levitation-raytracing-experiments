@@ -670,7 +670,7 @@ class Surface(TracerObject):
         points = rot_to_vector(points, self._normal) + self.origin
 
         ax.plot(points[:, 0], points[:, 1], points[:, 2])
-        ax.quiver(*self.origin, *self._normal, color="tab:orange")
+        ax.quiver(*self.origin, *(self._normal*0.1), color="tab:orange")
 
 
 class Sphere(TracerObject):
