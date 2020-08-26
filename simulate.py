@@ -28,6 +28,7 @@ from importlib import import_module
 from datetime import datetime
 from time import sleep
 import os
+import argparse
 
 
 def quaternion(angle, vector):
@@ -102,10 +103,15 @@ def main():
     # that it's a global variable
     global derivatives
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config", nargs='?', help="the configuration YAML file to use", default="config.yaml")
+    args = parser.parse_args()
+    config_file = args.config
+
     tqdm.write("Loading configuration...")
 
     # Load the config file
-    with open("config.yaml", 'r') as f:
+    with open(config_file, 'r') as f:
         config = yaml.safe_load(f)
 
     # Check if any variables have been configured
@@ -124,7 +130,7 @@ def main():
     for vs in range(var_steps):
         # If variables have been defined, calculate their current value and push that into the config
         if len(variables):
-            with open("config.yaml", 'r') as f:
+            with open(config_file, 'r') as f:
                 # Read the config file
                 text = f.read()
             # For each variable calculate the current value...
@@ -203,7 +209,7 @@ def main():
         tqdm.write("The output will be saved in " + savepath)
 
         # Copy the config file to the directory
-        with open("config.yaml", 'r') as f:
+        with open(config_file, 'r') as f:
             with open(os.path.join(savepath, "config.yaml"), 'w') as fw:
                 fw.write(f.read())
 
