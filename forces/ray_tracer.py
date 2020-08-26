@@ -23,12 +23,12 @@ def factory(config, params):
     def ray_tracer_force(state, t):
         scene = make_scene(state, params)
         scene.run(limit=limit)
-        # if state[2]>1.3e-5:
-        # scene.propagate(1e-6)
-        # fig = plt.figure()
-        # ax = fig.add_subplot(111, projection='3d')
-        # scene.plot(ax, m_quiver=True, ray_kwargs={"c": "tab:blue"})
-        # plt.show()
+        # if t>1e-9:
+        #     scene.propagate(1e-6)
+        #     fig = plt.figure()
+        #     ax = fig.add_subplot(111, projection='3d')
+        #     scene.plot(ax, m_quiver=True, ray_kwargs={"c": "tab:blue"})
+        #     plt.show()
         # print(scene.momentum, state[:2])
         return concatenate((scene.momentum, scene.ang_momentum))*6.62607004e-34*1e9
 
@@ -51,7 +51,8 @@ def make_scene(state, params):
             origin = array(obj["origin"]["value"])
             ang_origin = None
             active = False
-        objects.append(getattr(ptracer, obj["type"])(origin, ang_origin=ang_origin, **obj["params"], active=active))
+        objects.append(getattr(ptracer, obj["type"])(origin, ang_origin=ang_origin, rot=state[6:10],
+                                                     **obj["params"], active=active))
     # print(objects[0].origin)
     # print(t)
     return ptracer.Scene(rf, objects)

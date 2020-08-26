@@ -8,7 +8,7 @@ variables:
 #      step: 1
 #      value: &var1 __var1__
     - name: ray_n
-      start: 300
+      start: 800
       end: 500
       step: 1
       value: &ray_n __ray_n__
@@ -16,19 +16,21 @@ variables:
 params:
   mass: &mass 1.3089969389957473e-12
   start: 0
-  end: .1
-  steps: 1000
-  initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
+  end: .5
+  steps: 5000
+  initial-conditions: [-4e-6, 0, 100.e-6, 0, 0, 0]
   axis: [1, 0, 0]
   rot: 0
   w-init: [0, 0, 0]
-  inertia: [1, 1, 1]
+  inertia: [1.1875e-5, 0.75e-5, 0.75e-5]
   solve_ivp-kwargs:
+    atol: [1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3]
+    rtol: 1.e-2
 
 output:
   show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-six sphere-rotation initial test"
+  save-as: "%Y-%m-%d-%H-%M-%S-torus-rotation big mom. inertia-limit 5-long time"
 #  save-as:
   csv:
     save: True
@@ -74,7 +76,7 @@ forces:
       radius: &radius 5.e-6
   - type: ray_tracer
     params:
-      limit: 2
+      limit: 5
       objects:
 #        - type: Sphere
 #          origin:
@@ -88,7 +90,7 @@ forces:
             type: offset
             value: [0,0,0]
           params:
-            filename: "six_normals.obj"
+            filename: "torus.obj"
             scale: *radius
             n_in: 1.52
       ray-factory:

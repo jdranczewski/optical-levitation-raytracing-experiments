@@ -66,6 +66,7 @@ def derivatives(t, state, forces, mass, inertia, pbar):
 
     q, w = state[6:10], state[10:]
     moments = quat_prod(quat_prod(q * [1, -1, -1, -1], (0, *acc[3:])), q)[1:]
+    # print(acc)
 
     # Return an array of form [v_x, v_y, v_z, a_x, a_y, a_z]
     return np.concatenate(([state[3], state[4], state[5], acc[0], acc[1], acc[2]],
@@ -171,7 +172,7 @@ def main():
         # print(sum(list(info["nfe"])))
         # print(info)
         init = np.concatenate((sim_params["initial-conditions"], quaternion(sim_params["rot"], sim_params["axis"]), sim_params["w-init"]))
-        print(quaternion(sim_params["rot"], sim_params["axis"]))
+        # print(quaternion(sim_params["rot"], sim_params["axis"]))
         res = solve_ivp(derivatives, (sim_params["start"], sim_params["end"]), init,
                         args=(forces, sim_params["mass"], sim_params["inertia"], pbar), t_eval=times, **kw)
         res = res.y.T
