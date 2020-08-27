@@ -745,6 +745,7 @@ class MeshTO(TracerObject):
         verts = jm.rotate(verts, self._rot)
         verts = verts*scale + self.origin
         faces = np.array([[int(v.split("/")[0]) - 1 for v in l[2:-1].split(" ")] for l in lines if l[:2] == 'f '])
+        self.scale = scale
         self.a = verts[faces[:, 0]]
         self.edge1 = verts[faces[:, 1]] - self.a
         self.edge2 = verts[faces[:, 2]] - self.a
@@ -767,7 +768,7 @@ class MeshTO(TracerObject):
         for i in range(len(a)):
             points = np.array((a[i], b[i], c[i], a[i])).T
             ax.plot(*points, c="tab:blue", alpha=0.1)
-            points = np.array((a[i], a[i]+self._normals[i]*.1)).T
+            points = np.array((a[i], a[i]+self._normals[i]*.1*self.scale)).T
             ax.plot(*points, c="tab:orange", alpha=0.1)
 
 

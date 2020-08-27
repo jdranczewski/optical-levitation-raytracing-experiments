@@ -2,11 +2,6 @@
 variables:
   steps: 1
   vars:
-#    - name: var1
-#      start: 500
-#      end: 505
-#      step: 1
-#      value: &var1 __var1__
     - name: ray_n
       start: 800
       end: 500
@@ -18,7 +13,7 @@ params:
   start: 0
   end: .5
   steps: 5000
-  initial-conditions: [-4e-6, 0, 100.e-6, 0, 0, 0]
+  initial-conditions: [4e-6, 0, 100.e-6, 0, 0, 0]
   axis: [1, 0, 0]
   rot: 0
   w-init: [0, 0, 0]
@@ -30,7 +25,7 @@ params:
 output:
   show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-six sphere-rotation big mom. inertia-limit 5-long time"
+  save-as: "%Y-%m-%d-%H-%M-%S-torus right"
 #  save-as:
   csv:
     save: True
@@ -78,13 +73,6 @@ forces:
     params:
       limit: 5
       objects:
-#        - type: Sphere
-#          origin:
-#            type: offset
-#            value: [0,0,0]
-#          params:
-#            radius: *radius
-#            n_in: 1.52
         - type: SmoothMeshTO
           origin:
             type: offset
@@ -106,4 +94,3 @@ forces:
           n: *ray_n
           wavelength: 532
           emit_radius: *radius
-#          random_switch: True
