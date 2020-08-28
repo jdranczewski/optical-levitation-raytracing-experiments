@@ -1,23 +1,23 @@
 # This is an example YAML config file
 variables:
-  steps: 1
+  steps: 5
   vars:
-    - name: ray_n
-      start: 300
-      end: 500
+    - name: angle
+      start: 0
+      end: 3.141592653589793
       step: 1
-      value: &ray_n __ray_n__
+      value: &angle __angle__
 
 params:
-  mass: &mass 1.3089969389957473e-12
+  mass: &mass 3.2724923474893684e-13
   start: 0
-  end: .04
-  steps: 500
-  initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
+  end: .2
+  steps: 1500
+  initial-conditions: [0, 0, 493.e-6, 0, 0, 0]
   axis: [1, 0, 0]
-  rot: 0
+  rot: *angle
   w-init: [0, 0, 0]
-  inertia: [1.3089969389957476e-23, 1.3089969389957476e-23, 1.3089969389957476e-23]
+  inertia: [4.09061543e-20, 4.09061543e-20, 1.63624617e-20]
   solve_ivp-kwargs:
     atol: [1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3]
     rtol: 1.e-2
@@ -25,36 +25,12 @@ params:
 output:
   show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-six-sphere-rot"
+  save-as: "%Y-%m-%d-%H-%M-%S-ellipsoid-5 angles"
 #  save-as:
   csv:
     save: True
-    sparse: 2
+    sparse: 1
   graphs:
-    - show: False
-      name: "vx"
-      x:
-        column: 6
-        label:
-        scale: 1
-        unit: s
-      y:
-        column: 3
-        label:
-        scale: 1.e-6
-        unit: $\mu m$
-    - show: False
-      name:
-      x:
-        column: 6
-        label: test
-        scale: 1
-        unit: s
-      y:
-        column: 2
-        label:
-        scale: 1.e-6
-        unit: $\mu m$
 
 forces:
   - type: drag
@@ -71,21 +47,14 @@ forces:
       radius: &radius 5.e-6
   - type: ray_tracer
     params:
-      limit: 5
+      limit: 2
       objects:
-#        - type: Sphere
-#          origin:
-#            type: offset
-#            value: [0,0,0]
-#          params:
-#            radius: *radius
-#            n_in: 1.52
         - type: SmoothMeshTO
           origin:
             type: offset
             value: [0,0,0]
           params:
-            filename: "six_normals.obj"
+            filename: "ellipsoid.obj"
             scale: *radius
             n_in: 1.52
       ray-factory:
@@ -98,7 +67,6 @@ forces:
           dir: [0,0,1]
           waist_radius: 3.39728e-6
           power: 300.e-3
-          n: *ray_n
+          n: 300
           wavelength: 532
           emit_radius: *radius
-#          random_switch: True

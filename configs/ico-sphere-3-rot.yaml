@@ -11,13 +11,13 @@ variables:
 params:
   mass: &mass 1.3089969389957473e-12
   start: 0
-  end: .04
-  steps: 500
+  end: .1
+  steps: 1000
   initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0]
-  axis: [1, 0, 0]
-  rot: 0
+  axis: [0, 1, 0]
+  rot: 1.5707963267948966
   w-init: [0, 0, 0]
-  inertia: [1.3089969389957476e-23, 1.3089969389957476e-23, 1.3089969389957476e-23]
+  inertia: [1.3089969389957476e-19, 1.3089969389957476e-19, 1.3089969389957476e-19]
   solve_ivp-kwargs:
     atol: [1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3]
     rtol: 1.e-2
@@ -25,7 +25,7 @@ params:
 output:
   show-main-graph: True
   # You can use tags from https://strftime.org/ to include current date elements in this name
-  save-as: "%Y-%m-%d-%H-%M-%S-six-sphere-rot"
+  save-as: "%Y-%m-%d-%H-%M-%S-ico-sphere-3-rot"
 #  save-as:
   csv:
     save: True
@@ -85,7 +85,7 @@ forces:
             type: offset
             value: [0,0,0]
           params:
-            filename: "six_normals.obj"
+            filename: "ico-3.obj"
             scale: *radius
             n_in: 1.52
       ray-factory:
