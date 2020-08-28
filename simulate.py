@@ -63,10 +63,11 @@ def derivatives(t, state, forces, mass, inertia, pbar):
         pbar.n = t
         pbar.refresh()
     # Compute the values of the various forces and sum them
-    acc = np.sum([force(state, t) for force in forces], axis=0)/mass
+    f = np.sum([force(state, t) for force in forces], axis=0)
+    acc = f[:3]/mass
 
     q, w = state[6:10], state[10:]
-    moments = quat_prod(quat_prod(q * [1, -1, -1, -1], (0, *acc[3:])), q)[1:]
+    moments = quat_prod(quat_prod(q * [1, -1, -1, -1], (0, *f[3:])), q)[1:]
     # print(acc)
 
     # Return an array of form [v_x, v_y, v_z, a_x, a_y, a_z]
