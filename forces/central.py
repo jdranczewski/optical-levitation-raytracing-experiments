@@ -12,6 +12,7 @@ To contact me, try (in no particular order)
 
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 """
+# parameters: origin, coefficient
 from numpy import array, concatenate, zeros
 
 

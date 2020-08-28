@@ -193,7 +193,7 @@ def main():
     tqdm.write("Making the output...")
 
     out_params = config["output"]
-    labels = ("time", "x", "y", "z", "v_x", "v_y", "v_z")
+    labels = ("time", "x", "y", "z", "v_x", "v_y", "v_z", "q_r", "q_i", "q_j", "q_k", "w_1", "w_2", "w_3")
     # Labels on the 'main' graph are in a different order
     labels_main = ("z", "x", "y")
     var_names = [var["name"] for var in variables]

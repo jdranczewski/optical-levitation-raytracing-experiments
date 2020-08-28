@@ -12,6 +12,7 @@ To contact me, try (in no particular order)
 
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 """
+# parameters: g, density, radius
 from numpy import array, pi, concatenate, zeros
 
 

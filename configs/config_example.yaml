@@ -1,0 +1,150 @@
+"""
+An example configuration file for the Newtonian simulation engine.
+
+Created during an Undergraduate Research Experience Programme placement at Imperial College London 2020
+by Jakub Dranczewski.
+
+To contact me, try (in no particular order)
+* jbd17@ic.ac.uk (unless I left)
+* jakub.dranczewski@gmail.com
+* jdranczewski.github.io (there should be an email in the CV)
+* some other social media platform
+
+This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
+"""
+
+
+# **The variable system** lets you automatically run a number of simulations while changing some parameters.
+variables:
+  steps: 1 # Over how many steps should this variable change?
+  # A list of variables - there can be more than one!
+  vars:
+    - name: ray_n # The name here must be the same as the two occurrences below.
+      start: 300 # Minimal value for the variable
+      end: 500 # Maximal value for the variable
+      step: 1 # NOT IMPLEMENTED, can be omitted - the intended implementation would change the value of this v
+      #         variable every N steps
+      value: &ray_n __ray_n__ # This is for interfacing with Python, make sure &[name] and __[name] is the same
+      #                         as [name] above.
+
+
+# *General simulation parameters*
+params:
+  mass: &mass 1.3089969389957473e-12 # NOTE we have defined a value alias here, called mass. This is a feature of YAML.
+  #                                    An alias defined as `&name value` can later be referenced by typing `*name`.
+  # The start and end time (in seconds) of the simulation:
+  start: 0
+  end: .1
+  steps: 1000 # The number of datapoints to take.
+  initial-conditions: [-1.5e-6, 0, 100.e-6, 0, 0, 0] # Initial position of our target.
+  # NOTE: when specifying numbers like 100.e-6, the dot is *required*.
+  # The initial rotational position of the target, specified as a rotation by a given angle around a given axis
+  axis: [1, 0, 0] # The axis
+  rot: 0 # The angle (rad)
+  w-init: [0, 0, 0] # Initial anular frequency (this is in target-fixed coordinates)
+  inertia: [1.1875e-5, 1.1875e-5, 1.1875e-5] # The moment of inertia (in target-fixed coordinates, theses should be
+  #                                            aligned with the principal axes, bear this in mind when designing targets)
+  # Keyword arguments for the solve_ivp function:
+  solve_ivp-kwargs:
+    atol: [1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3]
+    rtol: 1.e-2
+
+
+# This section specifies the *output that will be generated*.
+output:
+  show-main-graph: True # The 'main graph' is a simple graph showing the 3D path of the target, and
+  #                       separate graphs for the time dependence of x, y, and z. *This is saved by default.*
+  #                       The switch changes whether it is also shown at the end of the simulation.
+  #                       *The graph being shown prevents the script from closing!*
+  # save-as specifies the directory in `output` where the data will be saved.
+  # Leave blank if data shouldn't be saved.
+  # You can use tags from https://strftime.org/ to include current date elements in this name.
+  save-as: "%Y-%m-%d-%H-%M-%S-six-sphere-rot"
+  #save-as:
+  csv:
+    save: True # Data can be dumped into .csv files, one for each variable step. See `output/README.md` for notes.
+    sparse: 1 # Skips every nth row of the data.
+  # This allows for saving and showing graphs based on the data.
+  graphs:
+    # Note the `-`; this is a list, more than one graph is supported
+    - show: False # Shows this graph at the end of the simulation.
+      name: "vx" # If this is given, the graph is saved under this name
+      # The below specifies which data to show on each axis:
+      x:
+        column: 0 # Which column of the data to show on the graph. The most common columns are at the beginning:
+        #           [t, x, y, z, v_x, v_y, v_z, ...] - for a full guide see `output/README.md`.
+        label: # Axis label. If blank, this should be correctly set automatically. Simple LaTeX acceptex, like `v_x`
+        scale: 1 # Divide the stored values by this
+        unit: s # Unit to display in the label
+      y:
+        column: 4
+        label:
+        scale: 1.e-6 # Here scale is used to achieve displaying micrometers
+        unit: $\mu m$
+
+
+# This is a list of all the forces included in the simulation.
+# Any force from the `forces` folder can be used.
+forces:
+  - type: drag # Name of the force file
+    params: # Parameters of the force. Each force file describes the needed params in a comment at the top of it.
+      coefficient: 1.7058848108992579e-09
+  - type: gravity
+    params:
+      g: &g [0, 0, -9.8]
+      mass: *mass # Note how the alias we've defined above is used here as a value.
+  - type: buoyancy_sphere
+    params:
+      g: *g
+      density: 1.17845
+      radius: &radius 5.e-6
+  # This is the most complex force - the ray tracer!
+  - type: ray_tracer
+    # Just like other forces, it takes parameters, they are just a bit more complicated.
+    params:
+      # The number of calculated bounces of light. Higher is not always better, mostly with meshes!
+      limit: 5
+
+      # The TracerObjects (TO) in the simulation. For all TOs that can be used, see `ptracer.py`.
+      # This is a list.
+      objects:
+        - type: SmoothMeshTO # Class name of the TO
+          origin:
+            type: offset # This can be 'static', where the TO's position is constant, and determined
+            #              by the value below, the forces acting on it are also not included in the dynamics
+            #              of the system; or it can be 'offset', in which case the value below determines the offset
+            #              from the target's position (understood as what the Newtonian solver sees as the postion,
+            #              see `initial-conditions` above).
+            #              So for a set of concentric spheres, both should be set to offset, with a `value` of [0,0,0].
+            #              But it is possible to create an asymmetric shell, where the inner sphere is off-centre, by
+            #              setting its `value` to something non-zero.
+            value: [0,0,0]
+          params: # These parameters are exactly the same as the arguments of the chosen TO, excluding `origin`,
+                  # `ang_origin`, `rot`, and `active`, which are computed separately.
+            filename: "six_normals.obj"
+            scale: *radius
+            n_in: 1.52
+        # An example of a different Tracer Object
+#        - type: Sphere
+#          origin:
+#            type: static
+#            value: [0,0,0]
+#          params:
+#            radius: *radius
+#            n_in: 1.52
+
+      # The RayFactory (RF) is the source of rays. For all RFs that can be used, see `ptracer.py`.
+      ray-factory:
+        type: HexagonalGaussianRF # Class name of the chosen RF
+        origin:
+          type: offset # This is defined the same as for the TO above. Here we spawn the rays 5.1e-6 meters
+          #              below the target's centre.
+          value: [0, 0, -5.1e-6]
+        params: # These parameters are exactly the same as the arguments of the chosen TO, excluding `origin`
+          waist_origin: [0, 0, 0]
+          dir: [0,0,1]
+          waist_radius: 3.39728e-6
+          power: 300.e-3
+          n: *ray_n
+          wavelength: 532
+          emit_radius: *radius
