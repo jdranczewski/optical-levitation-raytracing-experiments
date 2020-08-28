@@ -1,0 +1,72 @@
+# This is an example YAML config file
+variables:
+  steps: 5
+  vars:
+    - name: angle
+      start: -0.1
+      end: 0.1
+      step: 1
+      value: &angle __angle__
+
+params:
+  mass: &mass 3.2724923474893684e-13
+  start: 0
+  end: .2
+  steps: 1500
+  initial-conditions: [0, 0, 493.e-6, 0, 0, 0]
+  axis: [0, 1, 0]
+  rot: *angle
+  w-init: [0, 0, 0]
+  inertia: [4.09061543e-20, 4.09061543e-20, 1.63624617e-20]
+  solve_ivp-kwargs:
+    atol: [1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-6, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3, 1.e-3]
+    rtol: 1.e-2
+
+output:
+  show-main-graph: True
+  # You can use tags from https://strftime.org/ to include current date elements in this name
+  save-as: "%Y-%m-%d-%H-%M-%S-ellipsoid-small-displacement"
+#  save-as:
+  csv:
+    save: True
+    sparse: 1
+  graphs:
+
+forces:
+  - type: drag
+    params:
+      coefficient: 1.7058848108992579e-09
+  - type: gravity
+    params:
+      g: &g [0, 0, -9.8]
+      mass: *mass
+  - type: buoyancy_sphere
+    params:
+      g: *g
+      density: 1.17845
+      radius: &radius 5.e-6
+  - type: ray_tracer
+    params:
+      limit: 2
+      objects:
+        - type: SmoothMeshTO
+          origin:
+            type: offset
+            value: [0,0,0]
+          params:
+            filename: "ellipsoid.obj"
+            scale: *radius
+            n_in: 1.52
+      ray-factory:
+        type: HexagonalGaussianRF
+        origin:
+          type: offset
+          value: [0, 0, -5.1e-6]
+        params:
+          waist_origin: [0, 0, 0]
+          dir: [0,0,1]
+          waist_radius: 3.39728e-6
+          power: 300.e-3
+          n: 300
+          wavelength: 532
+          emit_radius: *radius
