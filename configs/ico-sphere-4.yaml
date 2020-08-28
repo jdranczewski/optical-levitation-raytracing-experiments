@@ -85,7 +85,7 @@ forces:
             type: offset
             value: [0,0,0]
           params:
-            filename: "ico-4.obj"
+            filename: "objs/ico-4.obj"
             scale: *radius
             n_in: 1.52
       ray-factory:

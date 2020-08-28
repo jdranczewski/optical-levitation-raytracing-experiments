@@ -1,17 +1,15 @@
-"""
-An example configuration file for the Newtonian simulation engine.
-
-Created during an Undergraduate Research Experience Programme placement at Imperial College London 2020
-by Jakub Dranczewski.
-
-To contact me, try (in no particular order)
-* jbd17@ic.ac.uk (unless I left)
-* jakub.dranczewski@gmail.com
-* jdranczewski.github.io (there should be an email in the CV)
-* some other social media platform
-
-This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
-"""
+# An example configuration file for the Newtonian simulation engine.
+#
+# Created during an Undergraduate Research Experience Programme placement at Imperial College London 2020
+# by Jakub Dranczewski.
+#
+# To contact me, try (in no particular order)
+# * jbd17@ic.ac.uk (unless I left)
+# * jakub.dranczewski@gmail.com
+# * jdranczewski.github.io (there should be an email in the CV)
+# * some other social media platform
+#
+# This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
 
 
 # **The variable system** lets you automatically run a number of simulations while changing some parameters.
@@ -121,7 +119,7 @@ forces:
             value: [0,0,0]
           params: # These parameters are exactly the same as the arguments of the chosen TO, excluding `origin`,
                   # `ang_origin`, `rot`, and `active`, which are computed separately.
-            filename: "six_normals.obj"
+            filename: "objs/six_normals.obj"
             scale: *radius
             n_in: 1.52
         # An example of a different Tracer Object
