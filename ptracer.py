@@ -443,12 +443,14 @@ class RayFactory:
         return new
 
     def __add__(self, other):
-        self.origins = np.concatenate((self.origins, other.origins))
-        self.dirs = np.concatenate((self.dirs, other.dirs))
-        self.weights = np.concatenate((self.weights, other.weights))
-        if self.wavelength != other.wavelength:
+        rf = RayFactory()
+        rf.origins = np.concatenate((self.origins, other.origins))
+        rf.dirs = np.concatenate((self.dirs, other.dirs))
+        rf.weights = np.concatenate((self.weights, other.weights))
+        rf.wavelength = self.wavelength
+        if rf.wavelength != other.wavelength:
             raise Exception("Only RayFactories with the same wavelength can be added!")
-        return self
+        return rf
 
 
 class BasicRF(RayFactory):
