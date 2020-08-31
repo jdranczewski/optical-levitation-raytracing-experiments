@@ -14,7 +14,7 @@
 
 # **The variable system** lets you automatically run a number of simulations while changing some parameters.
 variables:
-  steps: 1 # Over how many steps should this variable change?
+  steps: 3 # Over how many steps should this variable change?
   # A list of variables - there can be more than one!
   vars:
     - name: ray_n # The name here must be the same as the two occurrences below.

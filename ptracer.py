@@ -4,8 +4,8 @@
 Created during an Undergraduate Research Experience Programme placement at Imperial College London 2020
 by Jakub Dranczewski.
 
-There should be a Jupyter Notebook in this directory called "ptracer-experiments.ipynb" - this contains
-examples of most things that can be done with this library.
+There should be a Jupyter Notebook in the `various-experiments` directory called "ptracer-experiments.ipynb" - this
+contains examples of most things that can be done with this library.
 
 To contact me, try (in no particular order)
 * jbd17@ic.ac.uk (unless I left)

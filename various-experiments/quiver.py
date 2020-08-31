@@ -1,6 +1,7 @@
 """
-This is a library for simulating 2D motion of a target under a set ot forces, most importantly a ray-tracing-based
-force calculator for arbitrary objects in laser beams.
+This is a prototype of a tool for displaying quiver plots for forces acting on a
+target. It works in 2D. A simmilar tool for 3D is included in the `output-inspector`
+Jupyter Notebook.
 
 To contact me, try (in no particular order)
 * jbd17@ic.ac.uk (unless I left)
@@ -12,6 +13,9 @@ This code should also be available at https://github.com/jdranczewski/optical-le
 
 NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e9 (wavelength is stored in nm)
 """
+from sys import path
+path.insert(0,'..')
+
 import yaml
 import numpy as np
 from forces.ray_tracer import make_scene

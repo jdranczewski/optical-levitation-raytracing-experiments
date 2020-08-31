@@ -2,6 +2,9 @@
 This is a library for simulating 2D motion of a target under a set ot forces, most importantly a ray-tracing-based
 force calculator for arbitrary objects in laser beams.
 
+Created during an Undergraduate Research Experience Programme placement at Imperial College London 2020
+by Jakub Dranczewski.
+
 To contact me, try (in no particular order)
 * jbd17@ic.ac.uk (unless I left)
 * jakub.dranczewski@gmail.com
@@ -9,8 +12,6 @@ To contact me, try (in no particular order)
 * some other social media platform
 
 This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
-
-NOTE: All momenta values need to be multiplied by h (Planck's constant) * 1e9 (wavelength is stored in nm)
 """
 # Parsing YAML config files
 import yaml

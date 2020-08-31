@@ -1,3 +1,17 @@
+"""
+This file contains some functions that are either heavy computationally, or called thousands of times.
+They have been stripped of all Python fanciness, they take numpy arrays and do numpy things to them.
+This is required for compilation with numba (http://numba.pydata.org/), which makes all of this run much faster.
+
+To contact me, try (in no particular order)
+* jbd17@ic.ac.uk (unless I left)
+* jakub.dranczewski@gmail.com
+* jdranczewski.github.io (there should be an email in the CV)
+* some other social media platform
+
+This code should also be available at https://github.com/jdranczewski/optical-levitation-raytracing-experiments
+"""
+
 import numpy as np
 from numba import jit
 
