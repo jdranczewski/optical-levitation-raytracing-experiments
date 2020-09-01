@@ -21,7 +21,7 @@ is as follows:
 * omega_y
 * omega_z (rad/s, in a target - fixed frame).
 
-See [Wikipedia](https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation)
+See [Wikipedia]()
 for an intro on what a quaternion is, or
 [this excellent series](https://eater.net/quaternions)
 of interactive demonstrations by 3Blue1Brown, which may take a while, but
