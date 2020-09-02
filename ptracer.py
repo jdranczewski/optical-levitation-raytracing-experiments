@@ -57,12 +57,14 @@ def normalize_array(x):
 def rot_to_vector(points, vector):
     """
     Rotate a set of points initially on the (x,y) plane so that the new normal of their plane is the given vector.
+    This was implemented before quaternions, so is quite different. Still useful for things like rotating a set
+    of rays towards the desired direction.
 
     :param points: np.array of points, [[X,Y,Z], [X,Y,Z], ...]
     :param vector: 3d normalised vector as a np.array, [X,Y,Z]
-    :return:
+    :return: np.array of rotated points
     """
-    # Rotate around y
+    # Rotate around y using a rotation matrix
     c = vector[2]
     s = np.sqrt(1 - c ** 2)
     rot = np.array([[c, 0, s],
@@ -70,7 +72,7 @@ def rot_to_vector(points, vector):
                     [-s, 0, c]])
     points = np.dot(points, rot.T)
 
-    # Rotate around z
+    # Rotate around z, again using a rotation matrix
     angle = np.arctan2(vector[1], vector[0])
     c = np.cos(angle)
     s = np.sin(angle)
@@ -88,7 +90,7 @@ class Scene:
     A container for a ray tracing situation.
 
     :property self.history: a series of snapshots of ray origins at each step.
-    :property self.objects: a list of all the TracerObjects in the scene
+    :property self.objects: a list of all the TracerObjects and ObjectContainers in the scene
     """
 
     def __init__(self, rf, objects):
@@ -96,13 +98,17 @@ class Scene:
         :param rf: a RayFactory object
         :param objects: a list of TracerObject objects
         """
+        # Copies need to be made so we don't modify the data stored in the RayFactory
         self.r_origins = rf.origins.copy()
         self.history = [self.r_origins.copy()]
         self.r_dirs = rf.dirs.copy()
         self.r_weights = rf.weights.copy()
         self.r_wavelength = rf.wavelength
+        # All rays start off as active
         self.active = np.ones(len(self.r_origins)).astype(bool)
         self.objects = objects
+        # Construct the list of TracerObjects
+        # Some of the elements of the `objects` list may be ObjectContainers, so this is handled here
         offset = 0
         for i in range(len(objects)):
             if isinstance(self.objects[i+offset], ObjectContainer):
@@ -181,6 +187,7 @@ class Scene:
         Run a full ray tracing simulation. Stops when all rays terminated or limit of steps reached.
 
         :param limit: maximum number of steps
+        :param queue: a processing queue for when the Scene is run in parallel (see MultiScene below)
         :param margin: distance to propagate rays after each collision
         :param announce_steps: if True, print step info during each step
         :return: None
@@ -200,6 +207,9 @@ class Scene:
         Given a matplotlib axis object, plot all simulation elements onto it.
 
         :param ax: a matplotlib axis
+        :param show_weight: whether to change alpha of rays depending on their weight. Defaults to True. Is not
+                            perfect, the display assumes the same weight throughout the ray's history, which
+                            is often invalid.
         :param ray_kwargs: keyword arguments to pass to ax.plot when drawing rays
         :param m_quiver: if True, the changes of momentum are plotted for all TracerObjects in the scene
         :param m_quiver_kwargs: keyword arguments to pass to ax.quiver when drawing the momentum changes, most useful
@@ -209,11 +219,12 @@ class Scene:
                        ray-splitting occurs in the scene.
         :return: None
         """
-        # Not every ray has existed throughout the entire run, hence the great list comprehension below, which
-        # constructs paths for all the rays.
         max_w = np.amax(self.r_weights)
+        # If kwargs are not provided, substitute them with empty dictionaries
         ray_kwargs = {} if ray_kwargs is None else ray_kwargs
         m_quiver_kwargs = {} if m_quiver_kwargs is None else m_quiver_kwargs
+        # Not every ray has existed throughout the entire run, hence the great list comprehension below, which
+        # constructs paths for all the rays.
         for i, ray_hist in enumerate(
                 [[self.history[j][i] for j in range(len(self.history)) if i < len(self.history[j])] for i in
                  range(0, len(self.history[-1]), sparse)]):
@@ -222,8 +233,10 @@ class Scene:
                 ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=self.r_weights[i]/max_w, **ray_kwargs)
             else:
                 ax.plot(rh[:, 0], rh[:, 1], rh[:, 2], alpha=1, **ray_kwargs)
+        # Let the objects plot themselves
         for obj in self.objects:
             obj.plot(ax)
+        # Draw momentum arrows
         if m_quiver:
             ms = np.array([obj.momentum for obj in self.objects])
             os = np.array([obj.origin for obj in self.objects])
@@ -248,7 +261,7 @@ class Scene:
     @property
     def ang_momentum(self):
         """
-        Total momentum acquired by objects in the scene.
+        Total angular momentum acquired by objects in the scene.
 
         :return: np.array, [X,Y]
         """
@@ -260,28 +273,48 @@ class Scene:
 
 
 class MultiScene:
+    """
+    An attempt at a multithreded scene. While entertaining, it proved to not be faster on a large scale
+    (in a simulation new Scenes, and thus, in this case, processes, are spawned hundreds of time each second).
+
+    DOESN'T SUPPORT ANGULAR MOMENTUM
+    """
     def __init__(self, rf, obj, n_threads=5):
+        """
+        :param rf: a RayFactory object
+        :param obj: a list of TracerObject objects
+        :param n_threads: number of processes to spawn
+        """
         self.scenes = []
+        # How many rays to assign to each process
         batch = int(np.ceil(len(rf.origins) / n_threads))
         self.momentum = np.zeros(3)
         for i in range(n_threads):
+            # Create a new RF for each process
+            # Note: nowadays this could be done by slicing the factory itself, but that was not implemented
+            # back when I was writing this
             rf2 = RayFactory()
             s = slice(batch*i, batch*(i+1))
             rf2.origins = rf.origins[s]
             rf2.dirs = rf.dirs[s]
             rf2.weights = rf.weights[s]
             rf2.wavelength = rf.wavelength
+            # Create a scene for this process
             self.scenes.append(Scene(rf2, obj))
 
     def run(self, limit=100, margin=1e-10):
+        # A queue is what's used to communicate the momentum acquired from the processes
         q = Queue()
         ps = []
+        # Spawn the processes
         for scene in self.scenes:
-            p = Process(target=scene.run, args=(limit, q))
+            p = Process(target=scene.run, args=(limit, q, margin))
             p.start()
             ps.append(p)
+        # Make sure all the processes have finished
         [p.join() for p in ps]
 
+        # Get all the momentum from the queue
         for i in range(len(self.scenes)):
             self.momentum += q.get()
 
@@ -292,6 +325,7 @@ class TracerObject:
 
     :parameter self.origin: the object's origin
     :parameter self.momentum: total momentum accumulated by the object
+    :parameter self.ang_momentum: total angular momentum accumulated by the object
     """
     def __init__(self, origin, n_out=1., n_in=1., ang_origin=None, rot=(1,0,0,0), reflective=False, active=True):
         """
@@ -307,11 +341,18 @@ class TracerObject:
         :param origin: Coordinates of the object's centre - [X, Y]
         :param n_out: Refractive index outside of the object
         :param n_in: Refractive index inside of the object
-        :param reflective:
+        :param reflective: a boolean switch for making the object reflect all rays
+        :param active: a boolean switch for whether the object should be counted towards the scene's total accumulated
+                       momentum. Useful for systems that include a lens for example
+        :param ang_origin: [X, Y, Z], can be provided if the point around which angular momentum transfer should be
+                           calculated is different than the origin
+        :param rot: a quaternion, [q_r, q_i, q_j, q_k], representing the object's rotational position (the rotation is
+                    performed around ang_origin)
         """
         self.origin = np.array(origin).astype(float)
         self.ang_origin = self.origin if ang_origin is None else np.array(ang_origin).astype(float)
         self._rot = np.array(rot).astype(float)
+        # Calculate the origin after rotations - rotations always occur around ang_origin, so the origin may change
         offset = jm.rotate(np.array([self.origin - self.ang_origin]), self._rot)[0]
         self.origin = self.ang_origin + offset
         self.n_out = float(n_out)
@@ -319,7 +360,8 @@ class TracerObject:
         self.momentum = np.zeros(3)
         self.ang_momentum = np.zeros(3)
         self.active = active
-        # The object's ray-acting function is assigned to the outwards-facing, general "act_rays" function,
+        # The object's ray-acting function is assigned to the general "act_rays" function,
+        # which is what the scene will call,
         # unless reflective is None, in which case act_rays is left as is.
         if reflective:
             self.act_rays = self.reflect
@@ -332,13 +374,13 @@ class TracerObject:
 
         :param os: np.array of ray origins, [[X,Y], [X,Y], ...]
         :param dirs: np.array of ray directions as unit vectors, [[X,Y], [X,Y], ...]
-        :return: np.array of distances for each ray
+        :return: np.array of distances for each ray, np.inf if no collision
         """
         raise NotImplementedError
 
     def normals(self, points):
         """
-        Calculate normals to the object.
+        Calculate normals to the object at the given points.
 
         :param points: np.array of points at which we wish to know the normals, [[X,Y], [X,Y], ...]
         :return: np.array of unit normals at the given points, [[X,Y], [X,Y], ...]
@@ -373,8 +415,9 @@ class TracerObject:
         # Compute the normals
         normals = self.normals(os)
 
-        # Determine which refractive index to use for momentum change calculation
-        momentum, ang_momentum, dirs, weights = jm.reflect(os, dirs, weights, wavelength, normals, self.n_in, self.n_out, self.ang_origin)
+        # Use a compiled function for the main calculation
+        momentum, ang_momentum, dirs, weights = jm.reflect(os, dirs, weights, wavelength, normals,
+                                                           self.n_in, self.n_out, self.ang_origin)
         self.momentum -= momentum
         self.ang_momentum -= ang_momentum
 
@@ -395,6 +438,7 @@ class TracerObject:
         # Calculate the normals
         normals = self.normals(os)
 
+        # Use a compiled function for the main calculation
         momentum, ang_momentum, d_refr, weights,\
         new_d, new_weights, new_origins = jm.refract(os, dirs, weights, wavelength,
                                                      normals, self.n_in, self.n_out,
@@ -415,7 +459,14 @@ class TracerObject:
 
 
 class ObjectContainer:
+    """
+    This can house a few objects. Basically a glorified list, but used below to provide a primitive
+    implementation of a mesh.
+    """
     def __init__(self, objects):
+        """
+        :param objects: a list of TracerObjects
+        """
         self.objects = objects
 
 
@@ -424,7 +475,7 @@ class ObjectContainer:
 #################################
 class RayFactory:
     """
-    A container object for ray data. Exposes:
+    A container object for ray data. Can be added to other RFs, and sliced. Exposes:
 
     self.origins: ray origins, np.array, [[X,Y,Z], [X,Y,Z], ...]
     self.dirs: ray directions (normalised), np.array, [[X,Y,Z], [X,Y,Z], ...]
@@ -469,7 +520,7 @@ class BasicRF(RayFactory):
         :param wavelength: a single float for the ray's wavelength
         """
         super().__init__()
-        # Store the wavelength
+        # Store the wavelength (this must be the same for all rays)
         self.wavelength = float(wavelength)
 
         # Determine which parameters were given as lists, and their lengths
@@ -514,7 +565,31 @@ class BasicRF(RayFactory):
 
 
 class AdaptiveGaussianRF(RayFactory):
-    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius, curve=False, random_switch=False):
+    def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius,
+                 curve=False, random_switch=False):
+        """
+        Creates an adaptive gaussian ray factory. What this means is that we make an approximation of a real Gaussian
+        beam (which technically requires diffraction to simulate properly) by sampling a theoretical intensity
+        distribution function in a plane very close to the target. This gives approximate values for what energies
+        the rays should be carrying.
+
+        This RF distributes the rays on concentric rings, and the ray spacing on the rings is simmilar to the ring
+        spacing. This is not perfect, it can create a fair bit of assymetry, even though the rays on the rings are
+        distributed evenly.
+
+        :param waist_origin: [X, Y, Z], origin of the beam waist
+        :param dir: [X, Y, Z], direction of the beam
+        :param waist_radius: waist radius
+        :param power: total power of the beam in watts
+        :param n: number of rays to generate
+        :param wavelength: beam wavelength in nanometers
+        :param origin: origin of the ray emitting surface, should be close to the target
+        :param emit_radius: radius of the ray emitting circle
+        :param curve: a boolean switch for tilting rays according to the beam's curvature. Experimental implementation,
+                      off by default
+        :param random_switch: a boolean switch for adding a random angle to each ray ring. Helps with meshes somewhat,
+                              at the cost of making the output more noisy
+        """
         super().__init__()
         # Calculate the ray origin distribution
         N = int(n)
@@ -532,6 +607,9 @@ class AdaptiveGaussianRF(RayFactory):
         areas = np.zeros(N)
         areas[0] = np.pi * (d/2)**2
         start = 1
+        # The rays are to be roughly equally spaced on the rings, but the circumference of each ring is not necessarily
+        # an exact multiple of the ray spacing. offset compensates for this, making sure the number of rays is exactly
+        # as requested
         offset = 0
         for i in range(1, n):
             n_ring = round((2 * np.pi * i * d + offset) / d_ring)
@@ -554,8 +632,11 @@ class AdaptiveGaussianRF(RayFactory):
 
         # Calculate the necessary ray weights
         z = _dir.dot(np.array(origin) - np.array(waist_origin))
+        # rv are vectors from the waist origin to the rays
         rv = self.origins - np.array(waist_origin)
+        # rvr are vectors from the centre of the beam to the rays, perpendicular to the ray direction
         rvr = rv - np.einsum("ij,j->i", rv, _dir).reshape((-1,1)) * _dir
+        # From  that we can calculate our distance from the central axis of the beam
         r = np.sqrt(np.einsum('...i,...i', rvr, rvr))
 
         photon_energy = 6.62607004e-25 * 299792458 / wavelength
@@ -564,6 +645,7 @@ class AdaptiveGaussianRF(RayFactory):
         self.weights = intensities / photon_energy * areas
 
         # Calculate directions for spreading rays
+        # This uses the equation for the inverse of ray curvature, and some maths from `notes.pdf`
         if curve:
             z_r = np.pi*waist_radius**2/(wavelength*1e-9)
             a = r * z / (z ** 2 + z_r ** 2)
@@ -579,6 +661,27 @@ class AdaptiveGaussianRF(RayFactory):
 
 class HexagonalGaussianRF(RayFactory):
     def __init__(self, waist_origin, dir, waist_radius, power, n, wavelength, origin, emit_radius, curve=False):
+        """
+        Creates an adaptive gaussian ray factory. What this means is that we make an approximation of a real Gaussian
+        beam (which technically requires diffraction to simulate properly) by sampling a theoretical intensity
+        distribution function in a plane very close to the target. This gives approximate values for what energies
+        the rays should be carrying.
+
+        This RF distributes the rays as a hexagonal lattice, covering a circle of radius emit_radius as exactly as
+        possible. This is still not perfectly symmetric, but it gave decent results.
+
+        :param waist_origin: [X, Y, Z], origin of the beam waist
+        :param dir: [X, Y, Z], direction of the beam
+        :param waist_radius: waist radius
+        :param power: total power of the beam in watts
+        :param n: number of rays to generate. In practice the number of rays will be the nearest centered
+                  hexagonal number.
+        :param wavelength: beam wavelength in nanometers
+        :param origin: origin of the ray emitting surface, should be close to the target
+        :param emit_radius: radius of the ray emitting circle
+        :param curve: a boolean switch for tilting rays according to the beam's curvature. Experimental implementation,
+                      off by default
+        """
         super().__init__()
         # Calculate the ray origin distribution
         n = int(np.round((3 + np.sqrt(12 * n - 3)) / 6))
@@ -643,8 +746,8 @@ class Surface(TracerObject):
         """
         Create a surface with an origin and a normal.
 
-        :param origin: np.array, [X,Y]
-        :param normal: np.array, [X,Y] for the plane's normal vector. Doesn't have to be a unit vector
+        :param origin: np.array, [X,Y,Z]
+        :param normal: np.array, [X,Y,Z] for the plane's normal vector. Doesn't have to be a unit vector
         :param kwargs: TracerObject's kwargs
         """
         super().__init__(origin, *args, **kwargs)
@@ -681,9 +784,9 @@ class Sphere(TracerObject):
     """
     def __init__(self, origin, radius, *args, **kwargs):
         """
-        Create a sphere or a section of it.
+        Create a sphere.
 
-        :param origin: np.array, [X,Y]
+        :param origin: np.array, [X,Y,Z]
         :param radius: float representing the sphere's radius
         :param kwargs: TracerObject's kwargs
         """
@@ -710,11 +813,22 @@ class Sphere(TracerObject):
         return d
 
     def plot(self, ax):
+        # This is just a point, not a proper sphere
         ax.plot([self.origin[0]], [self.origin[1]], [self.origin[2]], "o", ms=10, alpha=0.2)
 
 
 class Triangle(TracerObject):
     def __init__(self, origin, a, b, c, *args, **kwargs):
+        """
+        Create a triangle. The orientation of the triangle (its normal direction) depends on the order a, b, c
+        is provided in.
+
+        :param origin: np.array, [X,Y,Z]
+        :param a: np.array, [X,Y,Z]
+        :param b: np.array, [X,Y,Z]
+        :param c: np.array, [X,Y,Z] - three vertices of the triangle, relative to the origin
+        :param kwargs: TracerObject's kwargs
+        """
         origin = np.array([0, 0, 0]) if origin is None else np.array(origin)
         super().__init__(origin, *args, **kwargs)
         a, b, c = jm.rotate(np.array([a, b, c]), self._rot)
@@ -740,7 +854,17 @@ class Triangle(TracerObject):
 
 class MeshTO(TracerObject):
     def __init__(self, origin, filename, scale, *args, **kwargs):
+        """
+        First implementaion of the Mesh TracerObject. You should probably use SmoothMeshTO, which respects smooth/flat
+        shading, unless your .obj file doesn't include vertex normal data.
+
+        :param origin: np.array, [X,Y,Z]
+        :param filename: name of the .obj file to load
+        :param scale: spatial dimensions of the object are multiplied by this number
+        :param kwargs: TracerObject's kwargs
+        """
         super().__init__(origin, *args, **kwargs)
+        # Load and process the .obj file
         with open(filename, 'r') as f:
             lines = f.readlines()
         verts = np.array([np.array(l[2:-1].split(" ")).astype(float) for l in lines if l[:2] == 'v '])
@@ -755,11 +879,16 @@ class MeshTO(TracerObject):
         self._d = None
 
     def normals(self, points):
+        """
+        The normals are determined for the collision points computed by intersect_d, the points argument is discarded.
+        intersect_d needs to be called before this method
+        """
         normals = jm.mesh_normals(self._d, self._normals)
         return normals
 
     def intersect_d(self, os, dirs):
         md, d_all = jm.intersect_d_mesh(os, dirs, self.a, self.edge1, self.edge2)
+        # Here we store the distances for later use in self.normals
         self._d = d_all
         return md
 
@@ -776,16 +905,27 @@ class MeshTO(TracerObject):
 
 class SmoothMeshTO(TracerObject):
     def __init__(self, origin, filename, scale, *args, **kwargs):
+        """
+        A mesh TracerObject that understands smooth/flat shading by reading in vertex normals from the .obj file
+
+        :param origin: np.array, [X,Y,Z]
+        :param filename: name of the .obj file to load
+        :param scale: spatial dimensions of the object are multiplied by this number
+        :param kwargs: TracerObject's kwargs
+        """
         super().__init__(origin, *args, **kwargs)
         with open(filename, 'r') as f:
             lines = f.readlines()
+        # Read in the vertices and rotate them according to rot
         verts = np.array([np.array(l[2:-1].split(" ")).astype(float) for l in lines if l[:2] == 'v '])
         verts = jm.rotate(verts, self._rot)
         verts = verts * scale + self.origin
         faces = np.array([[int(v.split("/")[0]) - 1 for v in l[2:-1].split(" ")] for l in lines if l[:2] == 'f '])
 
+        # Read in and rotate the normals
         vns = np.array([np.array(l[3:-1].split(" ")).astype(float) for l in lines if l[:3] == 'vn '])
         vns = jm.rotate(vns, self._rot)
+        # Assign normals to vertices
         vni = np.array([[int(v.split("/")[2]) - 1 for v in l[2:-1].split(" ")] for l in lines if l[:2] == 'f '])
         self.na = normalize_array(vns[vni[:, 0]])
         self.nb = normalize_array(vns[vni[:, 1]])
@@ -801,6 +941,7 @@ class SmoothMeshTO(TracerObject):
         return self._normals
 
     def intersect_d(self, os, dirs):
+        # a compiled method handles the calculation
         md, normals = jm.intersect_d_mesh_smooth(os, dirs, self.a, self.edge1, self.edge2, self.na, self.nb, self.nc)
         self._normals = normals
         # print(md)
@@ -826,6 +967,15 @@ class SmoothMeshTO(TracerObject):
 ############################
 class Mesh(ObjectContainer):
     def __init__(self, origin, filename, scale, *args, **kwargs):
+        """
+        The first implementation of a mesh - a bunch of Triangle objects stuck together in an ObjectContainer object.
+        Probably do not use, doesn't include things like smooth shading, or even handling of on-edge collisions.
+
+        :param origin: np.array, [X,Y,Z]
+        :param filename: name of the .obj file to load
+        :param scale: spatial dimensions of the object are multiplied by this number
+        :param kwargs: TracerObject's kwargs
+        """
         with open(filename, 'r') as f:
             lines = f.readlines()
         verts = np.array([np.array(l[2:-1].split(" ")).astype(float) for l in lines if l[:2] == 'v '])*scale

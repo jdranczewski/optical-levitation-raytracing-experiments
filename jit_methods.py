@@ -23,21 +23,29 @@ kwargs = {
 
 @jit(**kwargs)
 def rotate(points, q):
+    """
+    Rotates a bunch of points according to a quaternion.
+
+    :param points: np.array of points, [[X, Y, Z], [X, Y, Z], ...]
+    :param q: a quaternion, np.array, [q_r, q_i, q_j, q_k]
+    :return: rotated points: np.array of points, [[X, Y, Z], [X, Y, Z], ...]
+    """
+    # Rotation is achieved by a quaternion sandwich: q * p * (q^-1)
+    # This implementation computes the two quaternion products one after the other
     res = np.zeros((len(points), 4))
     # q*p
-    res[:,0] = -np.sum(q[1:]*points, axis=1)
-    res[:,1:] = q[0]*points + np.cross(q[1:], points)
+    res[:, 0] = -np.sum(q[1:]*points, axis=1)
+    res[:, 1:] = q[0]*points + np.cross(q[1:], points)
     # (q*p) * q^-1
     res2 = np.zeros((len(points), 4))
-    res2[:,0] = res[:,0]*q[0] - np.dot(res[:,1:].copy(), -q[1:].copy())
-    res2[:,1:] = res[:,0].copy().reshape((-1,1))*(-q[1:]) + (q[0]*res[:,1:]) + np.cross(res[:,1:], -q[1:])
-    return res2[:,1:]
+    res2[:, 0] = res[:, 0]*q[0] - np.dot(res[:, 1:].copy(), -q[1:].copy())
+    res2[:, 1:] = res[:, 0].copy().reshape((-1, 1))*(-q[1:]) + (q[0]*res[:, 1:]) + np.cross(res[:, 1:], -q[1:])
+    return res2[:, 1:]
 
 
 @jit(**kwargs)
 def refract(os, dirs, weights, wavelength, normals, n_in, n_out, ang_origin):
     # Establish normals, n1, and n2 arrays based on whether the rays are going in or out
-    # cos_i = -np.einsum("ij,ij->i", dirs, normals)
     cos_i = -np.sum(dirs*normals, axis=1)
     going_out = cos_i < 0
     normals[going_out] *= -1
@@ -66,9 +74,6 @@ def refract(os, dirs, weights, wavelength, normals, n_in, n_out, ang_origin):
     T = 1 - R
 
     # Calculate the ray's new direction under refraction and reflection
-    # d_refr = (np.einsum("i,ij->ij", n1 / n2, dirs) +
-    #           np.einsum("i,ij->ij", (n1 / n2 * cos_i - np.sqrt(1 - (n1 / n2) ** 2 * sin_i2)), normals))
-    # d_refl = dirs + 2 * np.einsum("ij,i->ij", normals, cos_i)
     d_refr = ((n1/n2).reshape((-1, 1)) * dirs +
               (n1 / n2 * cos_i - np.sqrt(1 - (n1 / n2) ** 2 * sin_i2)).reshape((-1,1)) * normals)
     d_refl = dirs + 2 * normals * cos_i.reshape((-1, 1))
@@ -100,14 +105,13 @@ def refract(os, dirs, weights, wavelength, normals, n_in, n_out, ang_origin):
 
 @jit(**kwargs)
 def reflect(os, dirs, weights, wavelength, normals, n_in, n_out, ang_origin):
-    # cos_i = -np.einsum("ij,ij->i", dirs, normals)
     cos_i = -np.sum(dirs*normals, axis=1)
+    # Determine the correct refractive index to use for momentum calculations
     going_out = cos_i < 0
     n1 = np.full(len(os), n_out)
     n1[going_out] = n_in
 
     # Reflect the rays and store the momentum change
-    # change = 2 * np.einsum("ij,i->ij", normals, cos_i)
     change = 2 * normals*cos_i.reshape((-1,1))
     forces = change*(n1*weights).reshape((-1, 1))
     momentum = np.sum(forces, axis=0) / wavelength
@@ -119,6 +123,7 @@ def reflect(os, dirs, weights, wavelength, normals, n_in, n_out, ang_origin):
 
 @jit(**kwargs)
 def intersect_d_triangles(os, dirs, a, edge1, edge2):
+    # Intersect_d for a single triangle
     d = np.full(len(os), np.inf)
 
     p = np.cross(dirs, edge2)
@@ -154,6 +159,7 @@ def intersect_d_triangles(os, dirs, a, edge1, edge2):
 
 @jit(**kwargs)
 def intersect_d_mesh(os, dirs, a, edge1, edge2, margin=1e-2):
+    # Intersect_d for many triangles
     n_rays = len(dirs)
     n_tris = len(a)
     d = np.zeros((n_rays, n_tris))
@@ -218,6 +224,8 @@ def mesh_normals(d, n):
         # print((np.abs((d[i] - m)/m)))
         # print(indices)
         for j in range(3):
+            # Each ray may have collided with more than one triangle in this implementation, so we take the average
+            # of the normals
             ns[i, j] = np.mean(n[indices][:, j])
     # print("-"*15)
     return ns / np.sqrt(ns[:, 0]**2 + ns[:, 1]**2 + ns[:, 2]**2).reshape((-1, 1))
@@ -276,17 +284,16 @@ def intersect_d_mesh_smooth(os, dirs, a, edge1, edge2, na, nb, nc, margin=0):
         index[i] = np.argmin(d[i])
 
     # Compute normals
+    # This uses barycentric coordinates to interpolate them
+    # The normals are then stored and retrieved with the `normals` method of the SmoothMeshTO class
     w = 1 - u - v
     collided = np.count_nonzero(d != np.inf, axis=1) > 0
     im = index[collided].astype(np.int64)
     ir = np.arange(n_rays)[collided].astype(np.int64)
     normals = np.zeros((len(im), 3))
     for i in range(len(im)):
-        # print(na[im[i]])
-        # print(w[i, im[i]])
         i_ray = ir[i]
         i_tri = im[i]
         normals[i, :] = na[i_tri]*w[i_ray, i_tri] + nb[i_tri]*u[i_ray, i_tri] + nc[i_tri]*v[i_ray, i_tri]
-    # print(normals)
 
     return m, normals
