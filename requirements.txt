@@ -1,0 +1,8 @@
+matplotlib
+numba
+numpy
+PyYAML
+scipy
+snakeviz
+sympy
+tqdm
